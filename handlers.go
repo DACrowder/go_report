@@ -6,6 +6,25 @@ import (
 	"strings"
 )
 
+func convertSeverityLevelString(slvl string) ReportType {
+	switch strings.ToLower(slvl) {
+	case "0":
+		return Unknown
+	case "1":
+		return Bug
+	case "2":
+		return Crash
+	case "unknown":
+		return Unknown
+	case "bug":
+		return Bug
+	case "crash":
+		return Crash
+	default:
+		return Unknown
+	}
+}
+
 func sendResponseForRetrievedBatch(w http.ResponseWriter, reports map[string]Report, statusCode int) {
 	switch statusCode {
 	case http.StatusInternalServerError:
@@ -19,7 +38,6 @@ func sendResponseForRetrievedBatch(w http.ResponseWriter, reports map[string]Rep
 			return
 		}
 	}
-	w.WriteHeader(statusCode)
 }
 
 // Gets all reports with content
@@ -57,7 +75,7 @@ func GetGroupHandler() http.HandlerFunc {
 func GetBatchByTypeHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Get the stored reports in json corresponding to an GID (i.e. {<id>:[...files]})
-		slvl := r.Context().Value(ReportSeverityLevelVar)
+		slvl := r.Context().Value(ReportSeverityLevelVar).(string)
 		if slvl == "" {
 			GetAllHandler()(w, r)
 			return
@@ -66,9 +84,10 @@ func GetBatchByTypeHandler() http.HandlerFunc {
 		for k := range Store.Keys(nil) {
 			keys = append(keys, k)
 		}
+		severity := convertSeverityLevelString(slvl)
 		reports, status := GetReportsWithKeys(keys...)
 		for k, v := range reports {
-			if v.Severity != slvl {
+			if v.Severity != severity {
 				delete(reports, k)
 			}
 		}
@@ -79,12 +98,23 @@ func GetBatchByTypeHandler() http.HandlerFunc {
 // return content of file
 func GetReportHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		k := r.Context().Value(ReportKeyVar).(string) // if this fails middleware is totally broken; let recoverer deal with the panic
-		if ok := Store.Has(k); !ok {
-			w.WriteHeader(http.StatusNotFound)
-			return
+		query := r.Context().Value(ReportKeyVar).(string) // if this fails middleware is totally broken; let recoverer deal with the panic
+		if ok := Store.Has(query); !ok {
+			found := false
+			for key := range Store.Keys(nil) {
+				if strings.Contains(key, query) {
+					found = true
+					query = key
+					break
+				}
+			}
+			if !found {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
 		}
-		rb, err := Store.Read(k)
+		rb, err := Store.Read(query)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -102,6 +132,7 @@ func GetReportHandler() http.HandlerFunc {
 
 func PostHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		Log.Println("Recieved request!")
 		// read rprt from body
 		rprt := Report{}
 		if err := json.NewDecoder(r.Body).Decode(&rprt); err != nil {
@@ -112,12 +143,12 @@ func PostHandler() http.HandlerFunc {
 		// add to store
 		k, v, err := CreateEntry(rprt)
 		if err != nil {
-			Log.Printf("could not create entry error: %v\nreport was: %+v", err.Error(), rprt)
+			Log.Printf("could not create entry error: %v\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		if err := Store.Write(k, v); err != nil {
-			Log.Printf("failed to store entry: (key: %v, report: %+v, error: %v)", k, rprt, err.Error())
+			Log.Printf("failed to store entry: (key: %v, error: %v)", k, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

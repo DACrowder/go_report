@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 var Log *log.Logger
@@ -45,6 +46,7 @@ const (
 
 func main() {
 	Store = CreateStore(Cfg.StorageRoot)
+	Log.Println("Storage initialized.")
 	r := chi.NewRouter()
 	// init cors middleware
 	cors := chiCors.New(chiCors.Options{
@@ -60,6 +62,7 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.URLFormat)
+	r.Use(middleware.Logger)
 	// Create router
 	r.Route("/report", func(r chi.Router) {
 		r.Get("/", GetAllHandler())
@@ -73,14 +76,15 @@ func main() {
 			r.Use(ReportSeverityCtx)
 			r.Get("/", GetBatchByTypeHandler())
 		})
-		r.Route("/{"+ReportKeyVar+"}", func(r chi.Router) {
+		r.Route("/key/{"+ReportKeyVar+"}", func(r chi.Router) {
 			r.Use(ReportKeyCtx)
 			r.Get("/", GetReportHandler())
 			r.Delete("/", DeleteReportHandler())
 		})
 	})
+	Log.Println("Router created, starting server...")
 	// Start serving
-	if err := http.ListenAndServe(":3000", r); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(Cfg.Port), r); err != nil {
 		if err != http.ErrServerClosed {
 			panic(err)
 		} else {
@@ -91,12 +95,12 @@ func main() {
 
 func ReportGroupCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reportID := chi.URLParam(r, ReportGIDVar)
-		if reportID == "" {
+		rGID := chi.URLParam(r, ReportGIDVar)
+		if rGID == "" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		ctx := context.WithValue(r.Context(), ReportGIDVar, &reportID)
+		ctx := context.WithValue(r.Context(), ReportGIDVar, rGID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -37,16 +37,11 @@ func CreateStore(root string) *diskv.Diskv {
 		last := len(path) - 1
 		return &diskv.PathKey{
 			Path:     path[:last],
-			FileName: path[last] + ".txt",
+			FileName: path[last],
 		}
 	}
 	invTransformer := func(pathKey *diskv.PathKey) (key string) {
-		txt := pathKey.FileName[len(pathKey.FileName)-4:]
-		if txt != ".txt" {
-			Log.Fatal("Invalid file found in storage folder!")
-			return ""
-		}
-		return strings.Join(pathKey.Path, "/") + pathKey.FileName[:len(pathKey.FileName)-4]
+		return strings.Join(pathKey.Path, "/") + "/" + pathKey.FileName
 	}
 	return diskv.New(
 		diskv.Options{
@@ -57,6 +52,12 @@ func CreateStore(root string) *diskv.Diskv {
 		})
 }
 
+func getMD5HashString(text []byte) string {
+	hasher := md5.New()
+	hasher.Write(text)
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
 func CreateEntry(r Report) (key string, reportJson []byte, err error) {
 	buf := new(bytes.Buffer)
 	err = json.NewEncoder(buf).Encode(r)
@@ -65,8 +66,9 @@ func CreateEntry(r Report) (key string, reportJson []byte, err error) {
 		return "", nil, err
 	}
 	reportJson = buf.Bytes()
+	h := getMD5HashString(reportJson)
 	key = strings.Join(
-		[]string{r.GID, hex.EncodeToString(md5.New().Sum(reportJson)) + ".txt"},
+		[]string{r.GID, h + ".txt"},
 		"/",
 	)
 	return key, reportJson, nil
@@ -93,11 +95,13 @@ func GetReportsWithKeys(keys ...string) (reports map[string]Report, statusCode i
 			continue
 		}
 		buf.Write(rbytes) // will not fail without panic for ENOMEM || ErrWriteTooLarge https://golang.org/pkg/bytes/#Buffer.Write thus ignoring error is ok!
-		if err := dec.Decode(buf); err != nil {
+		rprt := new(Report)
+		if err := dec.Decode(rprt); err != nil {
 			Log.Printf("failed to decode entry (k=%v): %v", k, err.Error())
 			errs = append(errs, err)
 			continue
 		}
+		reports[k] = *rprt
 		buf.Reset()
 	}
 	if len(errs) > 0 {
