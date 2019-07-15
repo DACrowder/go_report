@@ -17,7 +17,7 @@ var Log *log.Logger
 var Cfg Config
 var Store *diskv.Diskv
 
-func init()  {
+func init() {
 	var cfgPath string
 	var err error
 	flag.Usage = func() {
@@ -31,57 +31,61 @@ func init()  {
 	}
 	if Log, err = StartLogger(Cfg.LogFile); err != nil {
 		_, err = fmt.Fprintf(os.Stderr, "Server failed to start logger: %+v", err.Error())
-		if err != nil{
+		if err != nil {
 			panic(err)
 		}
 	}
 }
 
 const (
-	ReportKeyVar = "reportsKey"
-	ReportGIDVar = "reportsGID"
+	ReportKeyVar           = "reportsKey"
+	ReportGIDVar           = "reportsGID"
 	ReportSeverityLevelVar = "severityLevel"
 )
-
 
 func main() {
 	Store = CreateStore(Cfg.StorageRoot)
 	r := chi.NewRouter()
+	// init cors middleware
 	cors := chiCors.New(chiCors.Options{
 		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	})
+	// add middlewares
 	r.Use(cors.Handler)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.URLFormat)
-
+	// Create router
 	r.Route("/report", func(r chi.Router) {
 		r.Get("/", GetAllHandler())
 		r.Post("/", PostHandler())
-		r.Put("/", PostHandler())
-		r.Route("/group/{" + ReportGIDVar + "}", func(r chi.Router) {
+		r.Route("/group/{"+ReportGIDVar+"}", func(r chi.Router) {
 			r.Use(ReportGroupCtx)
 			r.Get("/", GetGroupHandler())
 			r.Delete("/", DeleteGroupHandler())
 		})
-		r.Route("/severity/{" + ReportSeverityLevelVar + "}", func(r chi.Router) {
+		r.Route("/severity/{"+ReportSeverityLevelVar+"}", func(r chi.Router) {
 			r.Use(ReportSeverityCtx)
 			r.Get("/", GetBatchByTypeHandler())
 		})
-		r.Route("/{" + ReportKeyVar + "}", func(r chi.Router) {
+		r.Route("/{"+ReportKeyVar+"}", func(r chi.Router) {
 			r.Use(ReportKeyCtx)
 			r.Get("/", GetReportHandler())
 			r.Delete("/", DeleteReportHandler())
 		})
 	})
-
+	// Start serving
 	if err := http.ListenAndServe(":3000", r); err != nil {
-		panic(err)
+		if err != http.ErrServerClosed {
+			panic(err)
+		} else {
+			Log.Println("server shutdown complete.")
+		}
 	}
 }
 

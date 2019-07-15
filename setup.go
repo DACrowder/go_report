@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	Port             int    `json:"port"` // Port on which to connect the server
-	DBConnection 	 string `json:"dbConnectionString"`
-	LogFile          string `json:"logFile"`     // File location for log
-	GithubToken 	 string `json:"githubToken"`
-	StorageRoot 	 string `json:"storageRootDir"`
+	Port         int    `json:"port"` // Port on which to connect the server
+	DBConnection string `json:"dbConnectionString"`
+	LogFile      string `json:"logFile"` // File location for log
+	GithubToken  string `json:"githubToken"`
+	StorageRoot  string `json:"storageRootDir"`
 }
 
 //ReadConfig reads a config.json file into a Config struct

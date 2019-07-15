@@ -11,6 +11,7 @@ import (
 )
 
 type ReportType int
+
 const (
 	Unknown ReportType = iota
 	Crash
@@ -49,10 +50,10 @@ func CreateStore(root string) *diskv.Diskv {
 	}
 	return diskv.New(
 		diskv.Options{
-			BasePath:     root,
+			BasePath:          root,
 			AdvancedTransform: transformer,
 			InverseTransform:  invTransformer,
-			CacheSizeMax: 1024 * 1024,
+			CacheSizeMax:      1024 * 1024,
 		})
 }
 
