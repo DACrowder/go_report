@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	chiCors "github.com/go-chi/cors"
+	"github.com/peterbourgon/diskv"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +15,7 @@ import (
 
 var Log *log.Logger
 var Cfg Config
+var Store *diskv.Diskv
 
 func init()  {
 	var cfgPath string
@@ -19,7 +23,7 @@ func init()  {
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
-	flag.StringVar(&cfgPath, "c", "stderr", "Path to config.json")
+	flag.StringVar(&cfgPath, "c", "config.json", "Path to config.json")
 	flag.Parse()
 	if Cfg, err = ReadConfig(cfgPath); err != nil {
 		_, err = fmt.Fprintf(os.Stderr, "Server failed to read configuration file: %+v", err.Error())
@@ -33,9 +37,16 @@ func init()  {
 	}
 }
 
-func main() {
-	r := chi.NewRouter()
+const (
+	ReportKeyVar = "reportsKey"
+	ReportGIDVar = "reportsGID"
+	ReportSeverityLevelVar = "severityLevel"
+)
 
+
+func main() {
+	Store = CreateStore(Cfg.StorageRoot)
+	r := chi.NewRouter()
 	cors := chiCors.New(chiCors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -45,12 +56,28 @@ func main() {
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	})
 	r.Use(cors.Handler)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.URLFormat)
 
-	r.Route("/report/", func(r chi.Router) {
-		r.Get("/", GetHandler())
+	r.Route("/report", func(r chi.Router) {
+		r.Get("/", GetAllHandler())
 		r.Post("/", PostHandler())
 		r.Put("/", PostHandler())
-		r.Delete("/", DeleteHandler())
+		r.Route("/group/{" + ReportGIDVar + "}", func(r chi.Router) {
+			r.Use(ReportGroupCtx)
+			r.Get("/", GetGroupHandler())
+			r.Delete("/", DeleteGroupHandler())
+		})
+		r.Route("/severity/{" + ReportSeverityLevelVar + "}", func(r chi.Router) {
+			r.Use(ReportSeverityCtx)
+			r.Get("/", GetBatchByTypeHandler())
+		})
+		r.Route("/{" + ReportKeyVar + "}", func(r chi.Router) {
+			r.Use(ReportKeyCtx)
+			r.Get("/", GetReportHandler())
+			r.Delete("/", DeleteReportHandler())
+		})
 	})
 
 	if err := http.ListenAndServe(":3000", r); err != nil {
@@ -58,4 +85,38 @@ func main() {
 	}
 }
 
+func ReportGroupCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reportID := chi.URLParam(r, ReportGIDVar)
+		if reportID == "" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ReportGIDVar, &reportID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
+func ReportKeyCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rKey := chi.URLParam(r, ReportKeyVar)
+		if rKey == "" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ReportKeyVar, rKey)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func ReportSeverityCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slvl := chi.URLParam(r, ReportSeverityLevelVar)
+		if slvl == "" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		ctx := context.WithValue(r.Context(), ReportSeverityLevelVar, slvl)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
