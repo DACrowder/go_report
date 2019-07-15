@@ -1,0 +1,7 @@
+{
+  "githubToken": "",
+  "dbConnectionString": "",
+  "port": 3000,
+  "logFile": "stderr",
+  "storageRootDir": "./reports"
+}
