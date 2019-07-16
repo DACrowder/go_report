@@ -1,8 +1,10 @@
 # Go Report (bugs & crashes)
-A simple server for automated crash reporting, written in Go
+A simple server for automated crash reporting, which stores reports using a disk based key-value store.
+Keys are md5 hashes of the report content, used to uniquely identify each file within a group. 
+Group IDs are human-readable identifiers for reports (i.e. from a particular catch block) 
+which enable grouping of reports which occurred in a specific set of circumstances. 
 
-Welcome to the chi/_examples/rest generated docs.
-
+Generated route documentation:
 ## Routes
 
 <details>
