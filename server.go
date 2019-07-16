@@ -1,21 +1,24 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
+
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	chiCors "github.com/go-chi/cors"
-	"github.com/peterbourgon/diskv"
+
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/go-chi/chi/middleware"
+	chiCors "github.com/go-chi/cors"
+	"github.com/peterbourgon/diskv"
 )
 
 var Log *log.Logger
 var Cfg Config
+var _ Secrets
 var Store *diskv.Diskv
 
 func init() {
@@ -38,15 +41,21 @@ func init() {
 	}
 }
 
+// Typing these makes more headaches than it solves.
+// These constants are the context() keys to retrieve the Key/GID/Severity/Report from the request context
+// They are used by the middleware to place values in context predictably
+// Likewise, the handlers use them to retrieve values via Context().Values(ReportVar) -> value
 const (
 	ReportKeyVar           = "reportsKey"
 	ReportGIDVar           = "reportsGID"
 	ReportSeverityLevelVar = "severityLevel"
+	ReportCtxVar           = "reportFromRequestBody"
 )
 
 func main() {
 	Store = CreateStore(Cfg.StorageRoot)
 	Log.Println("Storage initialized.")
+
 	r := chi.NewRouter()
 	// init cors middleware
 	cors := chiCors.New(chiCors.Options{
@@ -63,25 +72,36 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.URLFormat)
 	r.Use(middleware.Logger)
-	// Create router
-	r.Route("/report", func(r chi.Router) {
-		r.Get("/", GetAllHandler())
-		r.Post("/", PostHandler())
-		r.Route("/group/{"+ReportGIDVar+"}", func(r chi.Router) {
-			r.Use(ReportGroupCtx)
-			r.Get("/", GetGroupHandler())
-			r.Delete("/", DeleteGroupHandler())
-		})
-		r.Route("/severity/{"+ReportSeverityLevelVar+"}", func(r chi.Router) {
-			r.Use(ReportSeverityCtx)
-			r.Get("/", GetBatchByTypeHandler())
-		})
-		r.Route("/key/{"+ReportKeyVar+"}", func(r chi.Router) {
-			r.Use(ReportKeyCtx)
-			r.Get("/", GetReportHandler())
-			r.Delete("/", DeleteReportHandler())
+
+	// Private routes for actual service
+	r.Group(func(r chi.Router) {
+		r.Route("/report", func(r chi.Router) {
+			r.Group(func(r chi.Router) {
+				// Application authorization scheme
+				r.Use(ReportCtx)
+				r.Post("/", PostHandler())
+			})
+			r.Group(func(r chi.Router) {
+				// Require GitHub Repository access scope (developers only)
+				r.Get("/", GetAllHandler())
+				r.Route("/group/{"+ReportGIDVar+"}", func(r chi.Router) {
+					r.Use(ReportGroupCtx)
+					r.Get("/", GetGroupHandler())
+					r.Delete("/", DeleteGroupHandler())
+				})
+				r.Route("/severity/{"+ReportSeverityLevelVar+"}", func(r chi.Router) {
+					r.Use(ReportSeverityCtx)
+					r.Get("/", GetBatchByTypeHandler())
+				})
+				r.Route("/key/{"+ReportKeyVar+"}", func(r chi.Router) {
+					r.Use(ReportKeyCtx)
+					r.Get("/", GetReportHandler())
+					r.Delete("/", DeleteReportHandler())
+				})
+			})
 		})
 	})
+
 	Log.Println("Router created, starting server...")
 	// Start serving
 	if err := http.ListenAndServe(":"+strconv.Itoa(Cfg.Port), r); err != nil {
@@ -91,40 +111,4 @@ func main() {
 			Log.Println("server shutdown complete.")
 		}
 	}
-}
-
-func ReportGroupCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rGID := chi.URLParam(r, ReportGIDVar)
-		if rGID == "" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		ctx := context.WithValue(r.Context(), ReportGIDVar, rGID)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-func ReportKeyCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rKey := chi.URLParam(r, ReportKeyVar)
-		if rKey == "" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		ctx := context.WithValue(r.Context(), ReportKeyVar, rKey)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-func ReportSeverityCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slvl := chi.URLParam(r, ReportSeverityLevelVar)
-		if slvl == "" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		ctx := context.WithValue(r.Context(), ReportSeverityLevelVar, slvl)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
 }

@@ -6,40 +6,6 @@ import (
 	"strings"
 )
 
-func convertSeverityLevelString(slvl string) ReportType {
-	switch strings.ToLower(slvl) {
-	case "0":
-		return Unknown
-	case "1":
-		return Bug
-	case "2":
-		return Crash
-	case "unknown":
-		return Unknown
-	case "bug":
-		return Bug
-	case "crash":
-		return Crash
-	default:
-		return Unknown
-	}
-}
-
-func sendResponseForRetrievedBatch(w http.ResponseWriter, reports map[string]Report, statusCode int) {
-	switch statusCode {
-	case http.StatusInternalServerError:
-		w.WriteHeader(statusCode)
-		return
-	case http.StatusPartialContent:
-		fallthrough
-	case http.StatusOK:
-		if err := json.NewEncoder(w).Encode(reports); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-	}
-}
-
 // Gets all reports with content
 func GetAllHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -132,21 +98,17 @@ func GetReportHandler() http.HandlerFunc {
 
 func PostHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		Log.Println("Recieved request!")
-		// read rprt from body
-		rprt := Report{}
-		if err := json.NewDecoder(r.Body).Decode(&rprt); err != nil {
-			Log.Printf("bad request: %v\n", err.Error())
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+		// read rpt from context
+		rpt := r.Context().Value(ReportCtxVar).(Report)
+		Log.Println("Report Post request recieved")
 		// add to store
-		k, v, err := CreateEntry(rprt)
+		k, v, err := CreateEntry(rpt)
 		if err != nil {
 			Log.Printf("could not create entry error: %v\n", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		rpt.key = k
 		if err := Store.Write(k, v); err != nil {
 			Log.Printf("failed to store entry: (key: %v, error: %v)", k, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -154,11 +116,16 @@ func PostHandler() http.HandlerFunc {
 		}
 		splitKey := strings.Split(k, "/")
 		// respond with ReportReceipt
-		rr := ReportReceipt{GID: rprt.GID, FileName: splitKey[len(splitKey)-1]}
+		rr := ReportReceipt{GID: rpt.GID, FileName: splitKey[len(splitKey)-1]}
 		if err := json.NewEncoder(w).Encode(&rr); err != nil {
 			Log.Printf("failed to send reciept after creation: (key: %v) %v", k, err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
+		}
+		Log.Printf("Crash:%v, Severity: %v, Crash==Severity: %v", Crash, rpt.Severity, Crash == rpt.Severity)
+		if rpt.Severity == Crash {
+			Log.Println("Creating github issue for crash report")
+			_ = CreateGitHubIssue(rpt) // if this fails, its logged. Not a huge deal
 		}
 		w.WriteHeader(http.StatusCreated)
 	})
@@ -196,4 +163,30 @@ func DeleteReportHandler() http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+}
+
+func convertSeverityLevelString(slvl string) ReportType {
+	switch strings.ToLower(slvl) {
+	case "1", "bug":
+		return Bug
+	case "2", "crash":
+		return Crash
+	default:
+		return Unknown
+	}
+}
+
+func sendResponseForRetrievedBatch(w http.ResponseWriter, reports map[string]Report, statusCode int) {
+	switch statusCode {
+	case http.StatusInternalServerError:
+		w.WriteHeader(statusCode)
+		return
+	case http.StatusPartialContent:
+		fallthrough
+	case http.StatusOK:
+		if err := json.NewEncoder(w).Encode(reports); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
 }

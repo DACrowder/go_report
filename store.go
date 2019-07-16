@@ -14,8 +14,8 @@ type ReportType int
 
 const (
 	Unknown ReportType = iota
-	Crash
 	Bug
+	Crash
 )
 
 type Report struct {
@@ -23,6 +23,7 @@ type Report struct {
 	GID      string                 `json:"gid"`
 	Severity ReportType             `json:"severity"`
 	Content  map[string]interface{} `json:"content"`
+	key string
 }
 
 // For sending responses to queries regarding report creation confirmation, and lookup help

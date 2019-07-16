@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/pkg/errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -9,10 +10,11 @@ import (
 )
 
 type Config struct {
+	Secrets
 	Port         int    `json:"port"` // Port on which to connect the server
 	DBConnection string `json:"dbConnectionString"`
 	LogFile      string `json:"logFile"` // File location for log
-	GithubToken  string `json:"githubToken"`
+	SecretsPath  string `json:"secretsPath"` // path to file containing secrets
 	StorageRoot  string `json:"storageRootDir"`
 }
 
@@ -26,7 +28,15 @@ func ReadConfig(fp string) (c Config, err error) {
 	if err = json.NewDecoder(fd).Decode(&cfg); err != nil {
 		return cfg, err
 	}
-	return cfg, fd.Close()
+	if err := fd.Close(); err != nil {
+		return cfg, err
+	}
+	s, err := ReadSecrets(cfg.SecretsPath)
+	if err != nil {
+		return cfg, errors.Wrap(err, "could not read secrets file")
+	}
+	cfg.Secrets = s
+	return cfg, nil
 }
 
 func StartLogger(fp string) (*log.Logger, error) {
