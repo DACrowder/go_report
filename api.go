@@ -29,7 +29,7 @@ func GetGroupHandler() http.HandlerFunc {
 		}
 		keys := GetKeysByGID(gid)
 		if len(keys) <= 0 {
-			w.WriteHeader(http.StatusNotFound)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 		reports, status := GetReportsWithKeys(keys...)

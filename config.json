@@ -1,5 +1,5 @@
 {
-  "secretsPath": "./secrets/_secrets.json",
+  "secretsPath": "C:\\Users\\alex.crowder\\source\\src\\go_report\\secrets\\_secrets.json",
   "dbConnectionString": "",
   "port": 3333,
   "logFile": "stderr",

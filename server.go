@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-
+	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/jwtauth"
 
 	"log"
 	"net/http"
@@ -52,6 +53,7 @@ const (
 )
 
 func main() {
+	jwtAuth = jwtauth.New(jwt.SigningMethodHS512.Name, []byte(Cfg.Secrets.JWTKey), nil)
 	Store = CreateStore(Cfg.StorageRoot)
 	Log.Println("Storage initialized.")
 
@@ -72,8 +74,18 @@ func main() {
 	r.Use(middleware.URLFormat)
 	r.Use(middleware.Logger)
 
-	// Private routes for actual service
+	// public route for getting jwt
 	r.Group(func(r chi.Router) {
+		r.Route("/token", func (r chi.Router) {
+			r.Put("/", TokenExchangeHandler())
+			r.Post("/", TokenExchangeHandler())
+		})
+	})
+
+	// Private routes for actual service -- requires JWT
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(jwtAuth))
+		r.Use(Authenticator)
 		r.Route("/report", func(r chi.Router) {
 			r.Group(func(r chi.Router) {
 				// Application authorization scheme
@@ -81,6 +93,7 @@ func main() {
 				r.Post("/", PostHandler())
 			})
 			r.Group(func(r chi.Router) {
+				r.Use(OnlyDevsAuthenticator)
 				// Require GitHub Repository access scope (developers only)
 				r.Get("/", GetAllHandler())
 				r.Route("/group/{"+ReportGIDVar+"}", func(r chi.Router) {
@@ -105,7 +118,7 @@ func main() {
 	// Start serving
 	if err := http.ListenAndServe(":"+strconv.Itoa(Cfg.Port), r); err != nil {
 		if err != http.ErrServerClosed {
-			panic(err)
+			Log.Panic(err)
 		} else {
 			Log.Println("server shutdown complete.")
 		}
