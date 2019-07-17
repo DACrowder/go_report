@@ -18,7 +18,6 @@ import (
 
 var Log *log.Logger
 var Cfg Config
-var _ Secrets
 var Store *diskv.Diskv
 
 func init() {

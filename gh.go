@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
 	"net/http"
 )
 
+// todo: load from config
+const repoOwner = "DACrowder"
+const repoName = "go_report"
 
 func NewGitHubAppClient() (*github.Client, error) {
 	appTr, err := ghinstallation.NewAppsTransportKeyFromFile(
@@ -42,11 +46,32 @@ func CreateGitHubIssue(rpt Report) (error) {
 		Body: &body,
 		Labels: &([]string{"Critical"}),
 	}
-	_, _, err = gh.Issues.Create(context.Background(), "DACrowder", "go_report", &issReq)
+	_, _, err = gh.Issues.Create(context.Background(), repoOwner, repoName, &issReq)
 	if err != nil {
 		Log.Printf("error creating issue on github: %v", err.Error())
 		return err
 	}
 	Log.Println("Successfully created github issue")
 	return nil
+}
+
+// given username & bearer token string, get a Github client for the user
+func NewGitHubUserClient(user string, tkn string) (*github.Client, error) {
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: tkn})
+	tc := oauth2.NewClient(context.Background(), ts)
+	gh := github.NewClient(tc)
+	gh.Authorizations.Check(context.Background(), user, tkn)
+	return gh, nil
+}
+
+// IsContributor returns a boolean status for whether the given username is a repository contributor
+func IsContributor(userClient *github.Client) bool {
+	repo, _, err := userClient.Repositories.Get(context.Background(), repoOwner, repoName)
+	if err != nil {
+		Log.Printf("Failed to confirm user is contributor because of error: %v")
+		return false
+	} else if repo == nil {
+		return false
+	}
+	return true
 }
