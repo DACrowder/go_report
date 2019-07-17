@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/kr/pretty"
 	"golang.org/x/oauth2"
 	"io"
 	"io/ioutil"
@@ -100,7 +101,7 @@ func main() {
 		os.Exit(4)
 		return
 	}
-
+	_, _ = pretty.Println(data)
 }
 
 // getJWT from server using github credentials (uname + oauth2 token)
