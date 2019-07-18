@@ -26,7 +26,7 @@ func ReportCtx(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		ctx := context.WithValue(r.Context(), ReportCtxVar, *rpt)
+		ctx := context.WithValue(r.Context(), string(ReportCtxVar), *rpt)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -62,7 +62,7 @@ func ReportSeverityCtx(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		ctx := context.WithValue(r.Context(), ReportSeverityLevelVar, slvl)
+		ctx := context.WithValue(r.Context(), string(ReportSeverityLevelVar), slvl)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

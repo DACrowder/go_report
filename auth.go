@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/jwtauth"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -65,7 +66,7 @@ func Authenticator(next http.Handler) http.Handler {
 			return
 		}
 		// Token is authenticated, pass it through
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(r.Context()))
 	})
 }
 
@@ -126,6 +127,7 @@ func (tr TokenRequest) maybeCreateJWT(w http.ResponseWriter) (jwt string, err er
 	}
 	// access granted.
 	w.WriteHeader(http.StatusCreated)
+	log.Print("Generated token: " + jwt)
 	_, _ = w.Write([]byte(jwt))
 	return
 }
