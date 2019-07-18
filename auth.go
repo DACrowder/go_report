@@ -30,7 +30,7 @@ type Secrets struct {
 type TokenRequest struct {
 	User        string `json:"ghUser,omitempty"`
 	GitHubToken string `json:"ghToken,omitempty"`
-	MSSCert     string `json:"mssToken,omitempty"`
+	MSSCert     string `json:"mssCert,omitempty"`
 }
 
 //ReadConfig reads a _secrets.json file into a Config struct
@@ -98,7 +98,7 @@ func TokenExchangeHandler() http.HandlerFunc {
 		} else if tr.MSSCert != "" && (tr.GitHubToken != "" || tr.User != "") {
 			Fail(w, ErrMSSGHTokenRequest)
 			return
-		} else if tr.GitHubToken == "" || tr.User == "" {
+		} else if tr.MSSCert == "" && (tr.GitHubToken == "" || tr.User == "") {
 			Fail(w, ErrIncompleteTokenRequest)
 			return
 		}
@@ -125,8 +125,8 @@ func (tr TokenRequest) maybeCreateJWT(w http.ResponseWriter) (jwt string, err er
 		return
 	}
 	// access granted.
-	_, _ = w.Write([]byte(jwt))
 	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write([]byte(jwt))
 	return
 }
 

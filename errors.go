@@ -48,12 +48,12 @@ func SendError(w http.ResponseWriter, s int, description string) {
 		Status:      http.StatusText(s),
 		Description: description,
 	}
+	w.WriteHeader(s)
 	if err := json.NewEncoder(w).Encode(errorMes); err != nil {
 		logger.Println("ERROR: Failed to encode error output")
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(s)
 }
 
 type RequestFailure struct {
@@ -78,17 +78,21 @@ func (f RequestFailure) Error() string {
 }
 
 func Fail(w http.ResponseWriter, err error) {
+
 	switch errors.Cause(err).(type) {
 	case *json.UnsupportedValueError, *json.UnsupportedTypeError, *json.SyntaxError, *json.UnmarshalTypeError:
 		SendError(w, http.StatusBadRequest, "JSON format error")
 		logger.Printf("request failed - json format error: %v", err.Error())
 	case *RequestFailure:
 		rf := err.(*RequestFailure)
+		logger.Println("Request failed: ", err.Error())
 		SendError(w, rf.Code, rf.Msg)
 	case RequestFailure:
+		logger.Println("Request failed: ", err.Error())
 		rf := err.(RequestFailure)
 		SendError(w, rf.Code, rf.Msg)
 	default:
+		logger.Println("Request failed: ", err.Error())
 		SendError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 }
