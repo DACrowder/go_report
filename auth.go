@@ -92,15 +92,23 @@ func OnlyDevsAuthenticator(next http.Handler) http.Handler {
 
 func AddCertificateHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// get certificate string
-		// add to file
-
+		cert := r.Context().Value(string(MSSCertificateCtxVar)).(string)
+		if err := mssCertsMan.AddCertificate(cert); err != nil {
+			Fail(w, Failure(err, http.StatusInternalServerError, "could not add certificate"))
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
 	})
 }
 
 func RemoveCertificateHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
+		cert := r.Context().Value(string(MSSCertificateCtxVar)).(string)
+		if err  := mssCertsMan.RemoveCertificate(cert); err != nil {
+			Fail(w, Failure(err, http.StatusInternalServerError, "could not remove certificate"))
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 }
 
@@ -247,7 +255,7 @@ func (ms MSSCertsManager) AddCertificate(cert string) error {
 		if err := f.Close(); err != nil {
 			logger.Printf("failed to close certificates file: %v", err.Error())
 		}
-	}
+	}()
 	if err != nil {
 		return errors.Wrap(err, "failed to open cert registry")
 	}

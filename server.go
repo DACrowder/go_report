@@ -104,7 +104,7 @@ func main() {
 					r.Delete("/", DeleteReportHandler())
 				})
 			})
-			r.Route("/apps/certificate/{" + string(MSSCertificateCtxVar) + "}", func (r chi.Router) {
+			r.Route("/certificate/{" + string(MSSCertificateCtxVar) + "}", func (r chi.Router) {
 				r.Use(OnlyDevsAuthenticator)
 				r.Post("/", AddCertificateHandler())
 				r.Delete("/", RemoveCertificateHandler())
