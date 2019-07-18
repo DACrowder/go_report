@@ -90,6 +90,20 @@ func OnlyDevsAuthenticator(next http.Handler) http.Handler {
 	})
 }
 
+func AddCertificateHandler() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// get certificate string
+		// add to file
+
+	})
+}
+
+func RemoveCertificateHandler() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	})
+}
+
 func TokenExchangeHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tr := new(TokenRequest)
@@ -173,7 +187,7 @@ func checkMSSCertificate(cert string) (bool, error) {
 	cert = strings.TrimSpace(cert)
 	remain, ok := [][]byte{}, false
 
-	b, err := NewMSSCertificateManager().Read()
+	b, err := mssCertsMan.Read()
 	if err != nil {
 		return false, err
 	}
@@ -181,11 +195,11 @@ func checkMSSCertificate(cert string) (bool, error) {
 		ln = bytes.TrimSpace(ln)
 		if cert == string(ln) {
 			ok = true
-		} else {
-			remain = append(remain, ln)
 		}
+		// keep all certificates (hopefully make this an OTP for token xchg in future)
+		remain = append(remain, ln)
 	}
-	if _, err := NewMSSCertificateManager().Write(bytes.Join(remain, []byte("\n"))); err != nil {
+	if _, err := mssCertsMan.Write(bytes.Join(remain, []byte("\n"))); err != nil {
 		return ok, err
 	}
 	return ok, nil
@@ -224,4 +238,40 @@ func (ms MSSCertsManager) Write(certs []byte) (int, error) {
 	}
 	ms.lock.Unlock()
 	return len(certs), nil
+}
+
+func (ms MSSCertsManager) AddCertificate(cert string) error {
+	ms.lock.Lock(); defer ms.lock.Unlock()
+	f, err := os.OpenFile(cfg.MSSCertsFile, os.O_APPEND|os.O_WRONLY, 0644)
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.Printf("failed to close certificates file: %v", err.Error())
+		}
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to open cert registry")
+	}
+	if _, err := f.WriteString(cert); err != nil {
+		return errors.Wrap(err, "failed to write new cert to registry")
+	}
+	return nil
+}
+
+func (ms MSSCertsManager) RemoveCertificate(needle string) error {
+	hs, err := ms.Read()
+	if err != nil {
+		return errors.Wrapf(err, "cannot remove %v failed to read cert registry", needle)
+	}
+	remain := make([][]byte, 0, 128)
+	for _, ln := range bytes.Split(hs, []byte("\n")) {
+		ln = bytes.TrimSpace(ln)
+		if needle == string(ln) {
+			continue // do not add to new haystack
+		}
+		remain = append(remain, ln)
+	}
+	if _, err := ms.Write(bytes.Join(remain, []byte("\n"))); err != nil {
+		return errors.Wrap(err, "failed to write replacement cert registry")
+	}
+	return nil
 }

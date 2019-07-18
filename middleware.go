@@ -7,6 +7,18 @@ import (
 	"net/http"
 )
 
+func MSSCertificateCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cert := chi.URLParam(r, string(MSSCertificateCtxVar))
+		if cert == "" {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		}
+		ctx := context.WithValue(r.Context(), string(MSSCertificateCtxVar), cert)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 // ReportCtx returns a middleware which adds a *Report to POST request context
 func ReportCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -16,14 +28,7 @@ func ReportCtx(next http.Handler) http.Handler {
 		}
 		rpt := new(Report)
 		if err := json.NewDecoder(r.Body).Decode(rpt); err != nil {
-			logger.Printf("Could not decode Report from request body: %v", err.Error())
-			err := json.NewEncoder(w).Encode(
-				map[string]string{"error": "No malformed report json in request body"},
-			)
-			if err != nil {
-				logger.Printf("Error occurred while responding to client with err: malformed request body, in ReportCtx: %v", err.Error())
-			}
-			w.WriteHeader(http.StatusBadRequest)
+			Fail(w, Failure(err, http.StatusBadRequest, "Could not decode Report from request body"))
 			return
 		}
 		ctx := context.WithValue(r.Context(), string(ReportCtxVar), *rpt)
@@ -35,7 +40,7 @@ func ReportGroupCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rGID := chi.URLParam(r, string(ReportGIDVar))
 		if rGID == "" {
-			w.WriteHeader(http.StatusNotFound)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 		ctx := context.WithValue(r.Context(), string(ReportGIDVar), rGID)
@@ -47,7 +52,7 @@ func ReportKeyCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rKey := chi.URLParam(r, string(ReportKeyVar))
 		if rKey == "" {
-			w.WriteHeader(http.StatusNotFound)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 		ctx := context.WithValue(r.Context(), string(ReportKeyVar), rKey)
@@ -59,7 +64,7 @@ func ReportSeverityCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slvl := chi.URLParam(r, string(ReportSeverityLevelVar))
 		if slvl == "" {
-			w.WriteHeader(http.StatusNotFound)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 		ctx := context.WithValue(r.Context(), string(ReportSeverityLevelVar), slvl)

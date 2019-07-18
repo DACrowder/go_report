@@ -42,6 +42,7 @@ func init() {
 			panic(err)
 		}
 	}
+	mssCertsMan = NewMSSCertificateManager()
 }
 
 func main() {
@@ -102,6 +103,11 @@ func main() {
 					r.Get("/", GetReportHandler())
 					r.Delete("/", DeleteReportHandler())
 				})
+			})
+			r.Route("/apps/certificate/{" + string(MSSCertificateCtxVar) + "}", func (r chi.Router) {
+				r.Use(OnlyDevsAuthenticator)
+				r.Post("/", AddCertificateHandler())
+				r.Delete("/", RemoveCertificateHandler())
 			})
 		})
 	})
