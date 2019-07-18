@@ -13,12 +13,14 @@ type Config struct {
 	Secrets
 	Port         int    `json:"port"` // Port on which to connect the server
 	DBConnection string `json:"dbConnectionString"`
-	LogFile      string `json:"logFile"` // File location for log
+	LogFile      string `json:"logFile"`     // File location for log
 	SecretsPath  string `json:"secretsPath"` // path to file containing secrets
 	StorageRoot  string `json:"storageRootDir"`
+	RepoName     string `json:"targetRepoName"`
+	RepoOwner    string `json:"targetRepoOwner"`
 }
 
-//ReadConfig reads a config.json file into a Config struct
+//ReadConfig reads a cfg.json file into a Config struct
 func ReadConfig(fp string) (c Config, err error) {
 	cfg := Config{}
 	fd, err := os.Open(fp)

@@ -2,31 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"encoding/pem"
-	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/jwtauth"
-	"io/ioutil"
+	"github.com/pkg/errors"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 )
-
-const (
-	TokenExpiryDuration = (time.Minute * 60 * 24 * 365) // one year duration
-
-	// "aud" claim values
-	GHAudience = "github"
-	MSSAudience = "mss"
-
-	// Claim Keys
-	GHUserClaimKey         = "ghuname"
-	GHTokenClaimKey        = "ghtkn"
-	MSSCertificateClaimKey = "mssCert"
-)
-
-var jwtAuth *jwtauth.JWTAuth
 
 type Secrets struct {
 	JWTKey string `json:"jwtKey"`
@@ -40,9 +23,9 @@ type Secrets struct {
 }
 
 type TokenRequest struct {
-	User 		string	`json:"ghUser,omitempty"`
-	GitHubToken string 	`json:"ghToken,omitempty"`
-	MSSCert 	string 	`json:"mssToken,omitempty"`
+	User        string `json:"ghUser,omitempty"`
+	GitHubToken string `json:"ghToken,omitempty"`
+	MSSCert     string `json:"mssToken,omitempty"`
 }
 
 //ReadConfig reads a _secrets.json file into a Config struct
@@ -71,8 +54,8 @@ func Authenticator(next http.Handler) http.Handler {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		ok := claims.VerifyAudience(MSSAudience, true)
-		if !(ok || claims.VerifyAudience(GHAudience, true)) {
+		ok := claims.VerifyAudience(string(MSSAudience), true)
+		if !(ok || claims.VerifyAudience(string(GHAudience), true)) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
@@ -89,11 +72,11 @@ func OnlyDevsAuthenticator(next http.Handler) http.Handler {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		if ok := claims.VerifyAudience(GHAudience, true); !ok {
+		if ok := claims.VerifyAudience(string(GHAudience), true); !ok {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		if claims[GHUserClaimKey] == "" || claims[GHTokenClaimKey] == "" {
+		if claims[string(GHUser)] == "" || claims[string(GHToken)] == "" {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
@@ -105,40 +88,35 @@ func TokenExchangeHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tr := new(TokenRequest)
 		if err := json.NewDecoder(r.Body).Decode(tr); err != nil {
-			Log.Printf("could not read token request body: %v", err.Error())
-			w.WriteHeader(http.StatusBadRequest)
+			Fail(w, ErrCreatingToken(errors.Wrap(err, "failed to decode token request body"), http.StatusBadRequest))
 			return
 		} else if tr.MSSCert != "" && (tr.GitHubToken != "" || tr.User != "") {
-			Log.Printf("SECURITY? TokenRequest with an MSSCertificate and Github user/token was rejected")
-			_, _ = w.Write([]byte("Supply an MSSCertificate or a Github login user + OAuth2 token. Not both."))
-			w.WriteHeader(http.StatusBadRequest)
+			Fail(w, ErrMSSGHTokenRequest)
 			return
 		} else if tr.GitHubToken == "" || tr.User == "" {
-			_, _ = w.Write([]byte("Authorization requires a github username and oauth2 token"))
-			w.WriteHeader(http.StatusBadRequest)
+			Fail(w, ErrIncompleteTokenRequest)
 			return
 		}
-		_, _ = maybeCreateJWTHandler(*tr, w, r) // we may need to do more processing here
+		_, _ = tr.maybeCreateJWT(w) // we may need to do more processing here
 		return
 	})
 }
 
-func maybeCreateJWTHandler(tr TokenRequest, w http.ResponseWriter, r *http.Request) (jwt string, err error) {
+func (tr TokenRequest) maybeCreateJWT(w http.ResponseWriter) (jwt string, err error) {
 	if tr.MSSCert != "" {
 		jwt, err = newSignedMSSJWT(tr.MSSCert)
 	} else {
 		jwt, err = newUserJWT(tr.User, tr.GitHubToken)
 	}
-	if err != nil {
-		Log.Printf("Error creating jwt: %v", err.Error())
-		if err == jwtauth.ErrUnauthorized {
-			w.WriteHeader(http.StatusUnauthorized)
-		} else {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		}
+
+	if err == jwtauth.ErrUnauthorized {
+		Fail(w, ErrCreatingToken(err, http.StatusUnauthorized))
+		return
+	} else if err != nil {
+		Fail(w, ErrCreatingToken(err, http.StatusServiceUnavailable))
 		return
 	} else if jwt == "" {
-		w.WriteHeader(http.StatusServiceUnavailable)
+		Fail(w, ErrCreatingToken(errors.New("returned jwt was empty string"), http.StatusServiceUnavailable))
 		return
 	}
 	// access granted.
@@ -148,44 +126,33 @@ func maybeCreateJWTHandler(tr TokenRequest, w http.ResponseWriter, r *http.Reque
 }
 
 func newUserJWT(user string, ghTkn string) (tkn string, err error) {
-	retUser, err := RequestAuthedUserFromToken(ghTkn)
+	retUser, err := CheckTokenUser(ghTkn)
 	if err != nil {
 		return "", err
 	} else if retUser != user {
 		return "", jwtauth.ErrUnauthorized
 	}
+
 	_, tkn, err = jwtAuth.Encode(jwt.MapClaims{
-		"aud":           GHAudience,
-		GHUserClaimKey:  user,
-		GHTokenClaimKey: ghTkn,
-		"iss": "mss_go_report",
-		"iat" : time.Now().Unix(),
-		"exp": time.Now().Add(TokenExpiryDuration).Unix(),
-		"nbf": time.Now().Unix(),
+		"aud":           string(GHAudience),
+		string(GHUser):  user,
+		string(GHToken): ghTkn,
+		"iss":           "mss_go_report",
+		"iat":           time.Now().Unix(),
+		"exp":           time.Now().Add(ExpiresOneYear).Unix(),
+		"nbf":           time.Now().Unix(),
 	})
 	return
 }
 
 func newSignedMSSJWT(mssCert string) (tkn string, err error) {
 	_, tkn, err = jwtAuth.Encode(jwt.MapClaims{
-		"aud": MSSAudience,
-		MSSCertificateClaimKey: mssCert,
-		"iss": "mss_go_report",
-		"iat" : time.Now().Unix(),
-		"exp": time.Now().Add(TokenExpiryDuration).Unix(),
-		"nbf": time.Now().Unix(),
+		"aud":                  string(MSSAudience),
+		string(MSSCertificate): mssCert,
+		"iss":                  "mss_go_report",
+		"iat":                  time.Now().Unix(),
+		"exp":                  time.Now().Add(ExpiresOneYear).Unix(),
+		"nbf":                  time.Now().Unix(),
 	})
 	return
-}
-
-func GetKeyFromPemFile(fp string) ([]byte, error) {
-	b, err := ioutil.ReadFile(fp)
-	if err != nil {
-		return []byte(""), err
-	}
-	blk, _ := pem.Decode(b)
-	if blk == nil {
-		return []byte(""), errors.New("failed to decode key from file")
-	}
-	return blk.Bytes, nil
 }

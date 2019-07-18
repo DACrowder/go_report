@@ -17,9 +17,12 @@ import (
 	"github.com/peterbourgon/diskv"
 )
 
-var Log *log.Logger
-var Cfg Config
-var Store *diskv.Diskv
+var (
+	cfg     Config
+	logger  *log.Logger
+	store   *diskv.Diskv
+	jwtAuth *jwtauth.JWTAuth
+)
 
 func init() {
 	var cfgPath string
@@ -27,13 +30,13 @@ func init() {
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
-	flag.StringVar(&cfgPath, "c", "config.json", "Path to config.json")
+	flag.StringVar(&cfgPath, "c", "cfg.json", "Path to cfg.json")
 	flag.Parse()
-	if Cfg, err = ReadConfig(cfgPath); err != nil {
+	if cfg, err = ReadConfig(cfgPath); err != nil {
 		_, err = fmt.Fprintf(os.Stderr, "Server failed to read configuration file: %+v", err.Error())
 		panic(err)
 	}
-	if Log, err = StartLogger(Cfg.LogFile); err != nil {
+	if logger, err = StartLogger(cfg.LogFile); err != nil {
 		_, err = fmt.Fprintf(os.Stderr, "Server failed to start logger: %+v", err.Error())
 		if err != nil {
 			panic(err)
@@ -41,21 +44,10 @@ func init() {
 	}
 }
 
-// Typing these makes more headaches than it solves.
-// These constants are the context() keys to retrieve the Key/GID/Severity/Report from the request context
-// They are used by the middleware to place values in context predictably
-// Likewise, the handlers use them to retrieve values via Context().Values(ReportVar) -> value
-const (
-	ReportKeyVar           = "reportsKey"
-	ReportGIDVar           = "reportsGID"
-	ReportSeverityLevelVar = "severityLevel"
-	ReportCtxVar           = "reportFromRequestBody"
-)
-
 func main() {
-	jwtAuth = jwtauth.New(jwt.SigningMethodHS512.Name, []byte(Cfg.Secrets.JWTKey), nil)
-	Store = CreateStore(Cfg.StorageRoot)
-	Log.Println("Storage initialized.")
+	jwtAuth = jwtauth.New(jwt.SigningMethodHS512.Name, []byte(cfg.Secrets.JWTKey), nil)
+	store = CreateStore(cfg.StorageRoot)
+	logger.Println("Storage initialized.")
 
 	r := chi.NewRouter()
 	// init cors middleware
@@ -76,7 +68,7 @@ func main() {
 
 	// public route for getting jwt
 	r.Group(func(r chi.Router) {
-		r.Route("/token", func (r chi.Router) {
+		r.Route("/token", func(r chi.Router) {
 			r.Put("/", TokenExchangeHandler())
 			r.Post("/", TokenExchangeHandler())
 		})
@@ -96,16 +88,16 @@ func main() {
 				r.Use(OnlyDevsAuthenticator)
 				// Require GitHub Repository access scope (developers only)
 				r.Get("/", GetAllHandler())
-				r.Route("/group/{"+ReportGIDVar+"}", func(r chi.Router) {
+				r.Route("/group/{"+string(ReportGIDVar)+"}", func(r chi.Router) {
 					r.Use(ReportGroupCtx)
 					r.Get("/", GetGroupHandler())
 					r.Delete("/", DeleteGroupHandler())
 				})
-				r.Route("/severity/{"+ReportSeverityLevelVar+"}", func(r chi.Router) {
+				r.Route("/severity/{"+string(ReportSeverityLevelVar)+"}", func(r chi.Router) {
 					r.Use(ReportSeverityCtx)
 					r.Get("/", GetBatchByTypeHandler())
 				})
-				r.Route("/key/{"+ReportKeyVar+"}", func(r chi.Router) {
+				r.Route("/key/{"+string(ReportKeyVar)+"}", func(r chi.Router) {
 					r.Use(ReportKeyCtx)
 					r.Get("/", GetReportHandler())
 					r.Delete("/", DeleteReportHandler())
@@ -114,13 +106,13 @@ func main() {
 		})
 	})
 
-	Log.Println("Router created, starting server...")
+	logger.Println("Router created, starting server...")
 	// Start serving
-	if err := http.ListenAndServe(":"+strconv.Itoa(Cfg.Port), r); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(cfg.Port), r); err != nil {
 		if err != http.ErrServerClosed {
-			Log.Panic(err)
+			logger.Panic(err)
 		} else {
-			Log.Println("server shutdown complete.")
+			logger.Println("server shutdown complete.")
 		}
 	}
 }

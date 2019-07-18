@@ -11,82 +11,66 @@ import (
 	"net/http"
 )
 
-// todo: load from config
-const repoOwner = "DACrowder"
-const repoName = "go_report"
-
-func NewGitHubAppClient() (*github.Client, error) {
-	appTr, err := ghinstallation.NewAppsTransportKeyFromFile(
-		http.DefaultTransport,
-		Cfg.GHAppID,
-		Cfg.GHPrivateKeyFile,
-	)
-	if err != nil {
-		Log.Printf("error creating app transport: %v", err.Error())
-		return nil, err
-	}
-	return github.NewClient(&http.Client{Transport: appTr}), nil
-}
-
 func NewGitHubAppInstallationClient(install int) (*github.Client, error) {
-	tr, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, Cfg.GHAppID, install, Cfg.GHPrivateKeyFile)
+	tr, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, cfg.GHAppID, install, cfg.GHPrivateKeyFile)
 	if err != nil {
-		Log.Printf("error creating app transport: %v", err.Error())
-		return nil, err
+		return nil, errors.Wrapf(err, "error creating app transport: %v", err.Error())
 	}
 	return github.NewClient(&http.Client{Transport: tr}), nil
 }
 
-func CreateGitHubIssue(rpt Report) (error) {
-	gh, err := NewGitHubAppInstallationClient(Cfg.GHInstallID)
+func CreateGitHubIssue(rpt Report) error {
+	gh, err := NewGitHubAppInstallationClient(cfg.GHInstallID)
 	if err != nil {
 		return err
 	}
 	body := fmt.Sprintf("--- Automated Crash Report ---\nKey: %v", rpt.key)
 	issReq := github.IssueRequest{
-		Title: &rpt.GID,
-		Body: &body,
+		Title:  &rpt.GID,
+		Body:   &body,
 		Labels: &([]string{"Critical"}),
 	}
-	_, _, err = gh.Issues.Create(context.Background(), repoOwner, repoName, &issReq)
+	_, _, err = gh.Issues.Create(context.Background(), cfg.RepoOwner, cfg.RepoName, &issReq)
 	if err != nil {
-		Log.Printf("error creating issue on github: %v", err.Error())
 		return err
 	}
-	Log.Println("Successfully created github issue")
 	return nil
 }
 
-// given a github token, will return the associated username
-func RequestAuthedUserFromToken(tkn string) (string, error) {
+// CheckTokenUser takes a user's github oauth2 token, and confirms it is both a valid
+// token, and that the token belongs to a contributor/collaborator of the target repo.
+// It then returns the username associated with the token, e.g. for checking against a TokenRequest username
+func CheckTokenUser(tkn string) (string, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: tkn})
 	tc := oauth2.NewClient(context.Background(), ts)
 	gh := github.NewClient(tc)
 	req, err := gh.NewRequest(http.MethodGet, "https://api.github.com/user", nil)
 	if err != nil {
-		err = errors.Wrap(err, "failed to create /user request")
-		return "", err
+		return "", errors.Wrap(err, "failed to create /user request")
 	}
 	usr := new(github.User)
 	_, err = gh.Do(context.Background(), req, usr)
 	if err != nil {
 		return "", errors.Wrap(err, "gh.Do failed")
 	}
+	if ok := IsContributorOrCollaborator(gh, *usr.Login); !ok {
+		return "", errors.New(fmt.Sprintf("user %v is not a contributor/collaborator", *usr.Login))
+	}
 	return *usr.Login, nil
 }
 
 // IsContributor returns a boolean status for whether the given username is a repository contributor
 func IsContributorOrCollaborator(insClient *github.Client, name string) (authorized bool) {
-	repo, _, err := insClient.Repositories.Get(context.Background(), repoOwner, repoName)
+	repo, _, err := insClient.Repositories.Get(context.Background(), cfg.RepoOwner, cfg.RepoName)
 	if err != nil {
-		Log.Printf("Failed to confirm user is contributor because of error getting repository: %v", err.Error())
+		logger.Printf("Failed to confirm user is contributor because of error getting repository: %v", err.Error())
 		return false
 	} else if repo == nil {
-		Log.Println("Failed to confirm user is contributor because repository was nil")
+		logger.Println("Failed to confirm user is contributor because repository was nil")
 		return false
 	}
 	ok := isInCCList(insClient, repo.GetCollaboratorsURL(), name)
-	 if !ok { // not a collaborator...
+	if !ok { // not a collaborator...
 		return isInCCList(insClient, *repo.ContributorsURL, name) // is contributor?
 	}
 	return true // is collaborator.
@@ -97,7 +81,7 @@ func IsContributorOrCollaborator(insClient *github.Client, name string) (authori
 func isInCCList(ins *github.Client, url string, uname string) (isPresent bool) {
 	r, err := ins.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		Log.Printf("Failed to create GET %v request: %v", url, err.Error())
+		logger.Printf("Failed to create GET %v request: %v", url, err.Error())
 		return false
 	}
 	haystack := make([]*github.User, 0, 16)
@@ -105,14 +89,14 @@ func isInCCList(ins *github.Client, url string, uname string) (isPresent bool) {
 	if err != nil {
 		switch t := err.(type) {
 		case *github.RateLimitError:
-			Log.Printf("Rate limit error when attempting to check repo contributors.")
+			logger.Printf("Rate limit error when attempting to check repo contributors.")
 			return false
 		case *json.InvalidUnmarshalError, *json.UnsupportedValueError,
-					*json.UnmarshalTypeError, *json.UnsupportedTypeError:
-			Log.Printf("could not read %v response body: %v - %v", url, t, err.Error())
+			*json.UnmarshalTypeError, *json.UnsupportedTypeError:
+			logger.Printf("could not read %v response body: %v - %v", url, t, err.Error())
 			return false
 		default:
-			Log.Printf("failed to get response from %v, because: %v", url, err.Error())
+			logger.Printf("failed to get response from %v, because: %v", url, err.Error())
 			return false
 		}
 	} else if rsp.StatusCode == http.StatusNotFound {

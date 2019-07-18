@@ -3,5 +3,7 @@
   "dbConnectionString": "",
   "port": 3333,
   "logFile": "stderr",
-  "storageRootDir": "./reports"
+  "storageRootDir": "./reports",
+  "targetRepoName": "go_report",
+  "targetRepoOwner": "DACrowder"
 }

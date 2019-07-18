@@ -10,20 +10,12 @@ import (
 	"strings"
 )
 
-type ReportType int
-
-const (
-	Unknown ReportType = iota
-	Bug
-	Crash
-)
-
 type Report struct {
 	// The report creation request will contain these three fields
 	GID      string                 `json:"gid"`
 	Severity ReportType             `json:"severity"`
 	Content  map[string]interface{} `json:"content"`
-	key string
+	key      string
 }
 
 // For sending responses to queries regarding report creation confirmation, and lookup help
@@ -63,7 +55,7 @@ func CreateEntry(r Report) (key string, reportJson []byte, err error) {
 	buf := new(bytes.Buffer)
 	err = json.NewEncoder(buf).Encode(r)
 	if err != nil {
-		Log.Fatal(err)
+		logger.Fatal(err)
 		return "", nil, err
 	}
 	reportJson = buf.Bytes()
@@ -76,7 +68,7 @@ func CreateEntry(r Report) (key string, reportJson []byte, err error) {
 }
 
 func GetKeysByGID(gid string) []string {
-	keysChannel := Store.KeysPrefix(gid, nil)
+	keysChannel := store.KeysPrefix(gid, nil)
 	keys := make([]string, 0, 16)
 	for k := range keysChannel {
 		keys = append(keys, k)
@@ -89,16 +81,16 @@ func GetReportsWithKeys(keys ...string) (reports map[string]Report, statusCode i
 	errs, buf := make([]error, 0, 16), new(bytes.Buffer)
 	dec := json.NewDecoder(buf)
 	for _, k := range keys {
-		rbytes, err := Store.Read(k)
+		rbytes, err := store.Read(k)
 		if err != nil {
-			Log.Printf("failed to retrieve report (k=%v): %v", k, err.Error())
+			logger.Printf("failed to retrieve report (k=%v): %v", k, err.Error())
 			errs = append(errs, err)
 			continue
 		}
 		buf.Write(rbytes) // will not fail without panic for ENOMEM || ErrWriteTooLarge https://golang.org/pkg/bytes/#Buffer.Write thus ignoring error is ok!
 		rprt := new(Report)
 		if err := dec.Decode(rprt); err != nil {
-			Log.Printf("failed to decode entry (k=%v): %v", k, err.Error())
+			logger.Printf("failed to decode entry (k=%v): %v", k, err.Error())
 			errs = append(errs, err)
 			continue
 		}
