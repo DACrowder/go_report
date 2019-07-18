@@ -8,6 +8,12 @@ import (
 )
 
 var (
+	ErrWriteCertsFailed = Failure(
+		errors.New("Failed to write updated certificates file"),
+		http.StatusInternalServerError,
+		"",
+	)
+
 	ErrMSSGHTokenRequest = Failure(
 		errors.New("! TokenRequest had MSSCert and Github user+token"),
 		http.StatusBadRequest,
@@ -22,7 +28,7 @@ var (
 	ErrCreatingToken = func(err error, st int) *RequestFailure {
 		return Failure(
 			errors.Wrap(err, "jwt creation unauthorized"),
-			http.StatusUnauthorized,
+			st,
 			"",
 		)
 	}

@@ -12,5 +12,6 @@
 *.out
 
 #secrets
+/secrets
 ./secrets/*
 *_secret.json

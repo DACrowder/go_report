@@ -1,17 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/jwtauth"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 )
 
 type Secrets struct {
+	MSSCertsFile string `json:"jwtMSSCertsFile"`
 	JWTKey string `json:"jwtKey"`
 	// GitHub secrets
 	GHPrivateKeyFile string `json:"ghPrivateKeyFile"` // pem encoded rsa key
@@ -146,6 +151,11 @@ func newUserJWT(user string, ghTkn string) (tkn string, err error) {
 }
 
 func newSignedMSSJWT(mssCert string) (tkn string, err error) {
+	if ok, err := checkMSSCertificate(mssCert); err != nil {
+		return "", err
+	} else if !ok {
+		return "", jwtauth.ErrUnauthorized
+	}
 	_, tkn, err = jwtAuth.Encode(jwt.MapClaims{
 		"aud":                  string(MSSAudience),
 		string(MSSCertificate): mssCert,
@@ -155,4 +165,61 @@ func newSignedMSSJWT(mssCert string) (tkn string, err error) {
 		"nbf":                  time.Now().Unix(),
 	})
 	return
+}
+
+func checkMSSCertificate(cert string) (bool, error) {
+	cert = strings.TrimSpace(cert)
+	remain, ok := [][]byte{}, false
+
+	b, err := NewMSSCertificateManager().Read()
+	if err != nil {
+		return false, err
+	}
+	for _, ln := range bytes.Split(b, []byte("\n")) {
+		ln = bytes.TrimSpace(ln)
+		if cert == string(ln) {
+			ok = true
+		} else {
+			remain = append(remain, ln)
+		}
+	}
+	if _, err := NewMSSCertificateManager().Write(bytes.Join(remain, []byte("\n"))); err != nil {
+		return ok, err
+	}
+	return ok, nil
+}
+
+type MSSCertsManager struct {
+	lock sync.RWMutex
+}
+
+var mssCertsMan MSSCertsManager
+var makeMSSCertsManagerOnce sync.Once
+
+func NewMSSCertificateManager() MSSCertsManager {
+	makeMSSCertsManagerOnce.Do(func() {
+		mssCertsMan = MSSCertsManager{
+			lock: sync.RWMutex{},
+		}
+	})
+	return mssCertsMan
+}
+
+func (ms MSSCertsManager) Read() ([]byte, error) {
+	ms.lock.RLock()
+	b, err := ioutil.ReadFile(cfg.MSSCertsFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not read certificates file")
+	}
+	ms.lock.RUnlock()
+	return b, nil
+}
+
+func (ms MSSCertsManager) Write(certs []byte) (int, error) {
+	ms.lock.Lock()
+	if err := ioutil.WriteFile(cfg.MSSCertsFile, certs, 0644); err != nil {
+		return 0, ErrWriteCertsFailed
+	}
+	ms.lock.Unlock()
+	return len(certs), nil
 }

@@ -30,7 +30,7 @@ func init() {
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
-	flag.StringVar(&cfgPath, "c", "cfg.json", "Path to cfg.json")
+	flag.StringVar(&cfgPath, "c", "config.json", "Path to config.json")
 	flag.Parse()
 	if cfg, err = ReadConfig(cfgPath); err != nil {
 		_, err = fmt.Fprintf(os.Stderr, "Server failed to read configuration file: %+v", err.Error())
