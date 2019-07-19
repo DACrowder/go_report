@@ -193,8 +193,7 @@ func newSignedMSSJWT(mssCert string) (tkn string, err error) {
 
 func checkMSSCertificate(cert string) (bool, error) {
 	cert = strings.TrimSpace(cert)
-	remain, ok := [][]byte{}, false
-
+	ok := false
 	b, err := mssCertsMan.Read()
 	if err != nil {
 		return false, err
@@ -204,11 +203,6 @@ func checkMSSCertificate(cert string) (bool, error) {
 		if cert == string(ln) {
 			ok = true
 		}
-		// keep all certificates (hopefully make this an OTP for token xchg in future)
-		remain = append(remain, ln)
-	}
-	if _, err := mssCertsMan.Write(bytes.Join(remain, []byte("\n"))); err != nil {
-		return ok, err
 	}
 	return ok, nil
 }
@@ -259,7 +253,7 @@ func (ms MSSCertsManager) AddCertificate(cert string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to open cert registry")
 	}
-	if _, err := f.WriteString(cert); err != nil {
+	if _, err := f.WriteString("\n"+cert +"\n"); err != nil {
 		return errors.Wrap(err, "failed to write new cert to registry")
 	}
 	return nil

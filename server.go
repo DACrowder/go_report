@@ -79,6 +79,14 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(jwtAuth))
 		r.Use(Authenticator)
+		r.Group(func(r chi.Router) {
+			r.Use(MSSCertificateCtx)
+			r.Use(OnlyDevsAuthenticator)
+			r.Route("/certificate/{"+string(MSSCertificateCtxVar)+"}", func(r chi.Router) {
+				r.Post("/", AddCertificateHandler())
+				r.Delete("/", RemoveCertificateHandler())
+			})
+		})
 		r.Route("/report", func(r chi.Router) {
 			r.Group(func(r chi.Router) {
 				// Application authorization scheme
@@ -103,11 +111,6 @@ func main() {
 					r.Get("/", GetReportHandler())
 					r.Delete("/", DeleteReportHandler())
 				})
-			})
-			r.Route("/certificate/{" + string(MSSCertificateCtxVar) + "}", func (r chi.Router) {
-				r.Use(OnlyDevsAuthenticator)
-				r.Post("/", AddCertificateHandler())
-				r.Delete("/", RemoveCertificateHandler())
 			})
 		})
 	})

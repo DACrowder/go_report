@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -26,8 +29,11 @@ func ReportCtx(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(r.Context()))
 			return
 		}
+		b, _ := ioutil.ReadAll(r.Body)
+		fmt.Println(string(b))
+		bb := bytes.NewBuffer(b)
 		rpt := new(Report)
-		if err := json.NewDecoder(r.Body).Decode(rpt); err != nil {
+		if err := json.NewDecoder(bb).Decode(rpt); err != nil {
 			Fail(w, Failure(err, http.StatusBadRequest, "Could not decode Report from request body"))
 			return
 		}

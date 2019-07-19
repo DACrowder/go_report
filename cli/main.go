@@ -21,9 +21,10 @@ import (
 const baseurl = "http://127.0.0.1:3333"
 
 var (
-	key, gid, slvl, ghUser, ghToken, jwt, cert string
+	 key, gid, slvl, ghUser, ghToken, jwt, cert string
 	stype                                = -1
-	delReq                               = false
+	ALL = false
+	delReq                          = false
 	err                                  error
 )
 
@@ -33,6 +34,9 @@ func init() {
 		fmt.Println("Precedence of report qualifiers: key > group > severity = type")
 		fmt.Println("i.e. if group and severity given, severity will be ignored")
 	}
+
+	flag.BoolVar(&ALL, "ALL", false, "must be present to get/delete all records")
+
 	// short flags
 	flag.StringVar(&ghUser, "u", "", "your github username (for token requests)")
 	flag.StringVar(&ghToken, "o", "", "your github oauth token (for token requests)")
@@ -83,8 +87,13 @@ func main() {
 			return
 		}
 	}
+	url := url()
+	if (url == "") {
+		os.Exit(0)
+		return
+	}
 	b, _ := body(map[string]interface{}{}) // did not give data thus no error possible
-	req, err := http.NewRequest(method(), url(), b)
+	req, err := http.NewRequest(method(),url, b)
 	if err != nil {
 		_ = fmt.Errorf("failed to create request: %v\n", err.Error())
 		os.Exit(3)
@@ -133,7 +142,7 @@ func getJWT() (string, error) {
 func certRequest(tc *http.Client) (err error) {
 	var req *http.Request
 	var expected int
-	url := baseurl+"/certificate/"+cert
+	url := baseurl+"/certificate/"+cert+"/"
 	if delReq {
 		req, err = http.NewRequest(http.MethodDelete, url, nil)
 		expected = http.StatusNoContent
@@ -183,8 +192,10 @@ func url() string {
 		url += "/severity/" + slvl + "/"
 	} else if stype >= 0 {
 		url += "/severity/" + strconv.Itoa(stype) + "/"
-	} else {
+	} else if ALL {
 		url += "/"
+	} else {
+		return ""
 	}
 	return url
 }

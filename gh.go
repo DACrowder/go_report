@@ -85,7 +85,7 @@ func isInCCList(ins *github.Client, url string, uname string) (isPresent bool) {
 		return false
 	}
 	haystack := make([]*github.User, 0, 16)
-	rsp, err := ins.Do(context.Background(), r, haystack)
+	rsp, err := ins.Do(context.Background(), r, &haystack)
 	if err != nil {
 		switch t := err.(type) {
 		case *github.RateLimitError:

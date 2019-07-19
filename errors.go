@@ -78,7 +78,6 @@ func (f RequestFailure) Error() string {
 }
 
 func Fail(w http.ResponseWriter, err error) {
-
 	switch errors.Cause(err).(type) {
 	case *json.UnsupportedValueError, *json.UnsupportedTypeError, *json.SyntaxError, *json.UnmarshalTypeError:
 		SendError(w, http.StatusBadRequest, "JSON format error")
