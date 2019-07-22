@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	errors2 "go_report/failure"
 	"net/http"
 	"strings"
 )
@@ -105,19 +106,19 @@ func PostHandler() http.HandlerFunc {
 		// add to store
 		k, v, err := CreateEntry(rpt)
 		if err != nil {
-			Fail(w, Failure(errors.Wrap(err, "failed to create diskv entry"), http.StatusInternalServerError, ""))
+			errors2.Fail(w, errors2.New(errors.Wrap(err, "failed to create diskv entry"), http.StatusInternalServerError, ""))
 			return
 		}
 		rpt.key = k
 		if err := store.Write(k, v); err != nil {
-			Fail(w, Failure(errors.Wrap(err, "failed to store diskv entry"), http.StatusInternalServerError, ""))
+			errors2.Fail(w, errors2.New(errors.Wrap(err, "failed to store diskv entry"), http.StatusInternalServerError, ""))
 			return
 		}
 		splitKey := strings.Split(k, "/")
 		// respond with ReportReceipt
 		rr := ReportReceipt{GID: rpt.GID, FileName: splitKey[len(splitKey)-1]}
 		if err := json.NewEncoder(w).Encode(&rr); err != nil {
-			Fail(w, Failure(errors.Wrap(err, "failed to store diskv entry"), http.StatusInternalServerError, ""))
+			errors2.Fail(w, errors2.New(errors.Wrap(err, "failed to store diskv entry"), http.StatusInternalServerError, ""))
 			return
 		}
 		if rpt.Severity == Crash {
@@ -144,7 +145,7 @@ func DeleteGroupHandler() http.HandlerFunc {
 		}
 		if err := json.NewEncoder(w).Encode(map[string][]string{"deleted": keys}); err != nil {
 			m := fmt.Sprintf("Could not delete group (%v): %v", gid, err.Error())
-			Fail(w, Failure(errors.Wrap(err, "failed to store diskv entry"), http.StatusInternalServerError, m))
+			errors2.Fail(w, errors2.New(errors.Wrap(err, "failed to store diskv entry"), http.StatusInternalServerError, m))
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -159,7 +160,7 @@ func DeleteReportHandler() http.HandlerFunc {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		} else if err := store.Erase(k); err != nil {
-			Fail(w, Failure(errors.Wrap(err, "failed to erase store entry "+k), http.StatusInternalServerError, ""))
+			errors2.Fail(w, errors2.New(errors.Wrap(err, "failed to erase store entry "+k), http.StatusInternalServerError, ""))
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -185,7 +186,7 @@ func sendResponseForRetrievedBatch(w http.ResponseWriter, reports map[string]Rep
 		fallthrough
 	case http.StatusOK:
 		if err := json.NewEncoder(w).Encode(reports); err != nil {
-			Fail(w, Failure(errors.Wrap(err, "failed to send batch response"), http.StatusInternalServerError, ""))
+			errors2.Fail(w, errors2.New(errors.Wrap(err, "failed to send batch response"), http.StatusInternalServerError, ""))
 		}
 	}
 }

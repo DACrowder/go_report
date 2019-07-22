@@ -6,6 +6,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/jwtauth"
 	"github.com/pkg/errors"
+	"go_report/failure"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -94,7 +95,7 @@ func AddCertificateHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cert := r.Context().Value(string(MSSCertificateCtxVar)).(string)
 		if err := mssCertsMan.AddCertificate(cert); err != nil {
-			Fail(w, Failure(err, http.StatusInternalServerError, "could not add certificate"))
+			failure.Fail(w, failure.New(err, http.StatusInternalServerError, "could not add certificate"))
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
@@ -105,7 +106,7 @@ func RemoveCertificateHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cert := r.Context().Value(string(MSSCertificateCtxVar)).(string)
 		if err  := mssCertsMan.RemoveCertificate(cert); err != nil {
-			Fail(w, Failure(err, http.StatusInternalServerError, "could not remove certificate"))
+			failure.Fail(w, failure.New(err, http.StatusInternalServerError, "could not remove certificate"))
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -116,13 +117,13 @@ func TokenExchangeHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tr := new(TokenRequest)
 		if err := json.NewDecoder(r.Body).Decode(tr); err != nil {
-			Fail(w, ErrCreatingToken(errors.Wrap(err, "failed to decode token request body"), http.StatusBadRequest))
+			failure.Fail(w, failure.ErrCreatingToken(errors.Wrap(err, "failed to decode token request body"), http.StatusBadRequest))
 			return
 		} else if tr.MSSCert != "" && (tr.GitHubToken != "" || tr.User != "") {
-			Fail(w, ErrMSSGHTokenRequest)
+			failure.Fail(w, failure.ErrMSSGHTokenRequest)
 			return
 		} else if tr.MSSCert == "" && (tr.GitHubToken == "" || tr.User == "") {
-			Fail(w, ErrIncompleteTokenRequest)
+			failure.Fail(w, failure.ErrIncompleteTokenRequest)
 			return
 		}
 		_, _ = tr.maybeCreateJWT(w) // we may need to do more processing here
@@ -138,13 +139,13 @@ func (tr TokenRequest) maybeCreateJWT(w http.ResponseWriter) (jwt string, err er
 	}
 
 	if err == jwtauth.ErrUnauthorized {
-		Fail(w, ErrCreatingToken(err, http.StatusUnauthorized))
+		failure.Fail(w, failure.ErrCreatingToken(err, http.StatusUnauthorized))
 		return
 	} else if err != nil {
-		Fail(w, ErrCreatingToken(err, http.StatusServiceUnavailable))
+		failure.Fail(w, failure.ErrCreatingToken(err, http.StatusServiceUnavailable))
 		return
 	} else if jwt == "" {
-		Fail(w, ErrCreatingToken(errors.New("returned jwt was empty string"), http.StatusServiceUnavailable))
+		failure.Fail(w, failure.ErrCreatingToken(errors.New("returned jwt was empty string"), http.StatusServiceUnavailable))
 		return
 	}
 	// access granted.
@@ -236,7 +237,7 @@ func (ms MSSCertsManager) Read() ([]byte, error) {
 func (ms MSSCertsManager) Write(certs []byte) (int, error) {
 	ms.lock.Lock()
 	if err := ioutil.WriteFile(cfg.MSSCertsFile, certs, 0644); err != nil {
-		return 0, ErrWriteCertsFailed
+		return 0, failure.ErrWriteCertsFailed
 	}
 	ms.lock.Unlock()
 	return len(certs), nil

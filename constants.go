@@ -30,7 +30,6 @@ const (
 	ReportGIDVar           RequestContextKey = "reportsGID"
 	ReportSeverityLevelVar RequestContextKey = "severityLevel"
 	ReportCtxVar           RequestContextKey = "reportFromRequestBody"
-
 	MSSCertificateCtxVar		RequestContextKey = "mssCertificate"
 )
 

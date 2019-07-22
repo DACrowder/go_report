@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
+	"go_report/failure"
 	"io/ioutil"
 	"net/http"
 )
@@ -34,7 +35,7 @@ func ReportCtx(next http.Handler) http.Handler {
 		bb := bytes.NewBuffer(b)
 		rpt := new(Report)
 		if err := json.NewDecoder(bb).Decode(rpt); err != nil {
-			Fail(w, Failure(err, http.StatusBadRequest, "Could not decode Report from request body"))
+			failure.Fail(w, failure.New(err, http.StatusBadRequest, "Could not decode Report from request body"))
 			return
 		}
 		ctx := context.WithValue(r.Context(), string(ReportCtxVar), *rpt)
