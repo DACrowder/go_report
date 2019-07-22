@@ -6,6 +6,7 @@ import (
 	"go_report/failure"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -14,6 +15,11 @@ import (
 var (
 	initOnce sync.Once
 	man *Manager
+	ErrWriteCertsFailed = failure.New(
+		errors.New("Failed to write updated certificates file"),
+		http.StatusInternalServerError,
+		"",
+	)
 )
 
 type Manager struct {
@@ -101,7 +107,7 @@ func (man Manager) read() ([]byte, error) {
 func (man Manager) write(certs []byte) (int, error) {
 	man.lock.Lock()
 	if err := ioutil.WriteFile(man.MSSCertsFile, certs, 0660); err != nil {
-		return 0, failure.ErrWriteCertsFailed
+		return 0, ErrWriteCertsFailed
 	}
 	man.lock.Unlock()
 	return len(certs), nil

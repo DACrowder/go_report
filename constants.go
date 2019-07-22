@@ -4,10 +4,12 @@ import "time"
 
 type ReportType int
 
-type JwtClaimKey string
-type JwtAudience string
+
 type RequestContextKey string
 
+
+type JwtClaimKey string
+type JwtAudience string
 const ExpiresOneYear = (time.Minute * 60 * 24 * 365)
 
 const (

@@ -155,42 +155,7 @@ func (tr TokenRequest) maybeCreateJWT(w http.ResponseWriter) (jwt string, err er
 	return
 }
 
-func newUserJWT(user string, ghTkn string) (tkn string, err error) {
-	retUser, err := CheckTokenUser(ghTkn)
-	if err != nil {
-		return "", err
-	} else if retUser != user {
-		return "", jwtauth.ErrUnauthorized
-	}
 
-	_, tkn, err = jwtAuth.Encode(jwt.MapClaims{
-		"aud":           string(GHAudience),
-		string(GHUser):  user,
-		string(GHToken): ghTkn,
-		"iss":           "mss_go_report",
-		"iat":           time.Now().Unix(),
-		"exp":           time.Now().Add(ExpiresOneYear).Unix(),
-		"nbf":           time.Now().Unix(),
-	})
-	return
-}
-
-func newSignedMSSJWT(mssCert string) (tkn string, err error) {
-	if ok, err := checkMSSCertificate(mssCert); err != nil {
-		return "", err
-	} else if !ok {
-		return "", jwtauth.ErrUnauthorized
-	}
-	_, tkn, err = jwtAuth.Encode(jwt.MapClaims{
-		"aud":                  string(MSSAudience),
-		string(MSSCertificate): mssCert,
-		"iss":                  "mss_go_report",
-		"iat":                  time.Now().Unix(),
-		"exp":                  time.Now().Add(ExpiresOneYear).Unix(),
-		"nbf":                  time.Now().Unix(),
-	})
-	return
-}
 
 func checkMSSCertificate(cert string) (bool, error) {
 	cert = strings.TrimSpace(cert)

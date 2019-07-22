@@ -1,4 +1,4 @@
-package ghservice
+package gh
 
 import (
 	"context"
@@ -64,26 +64,30 @@ func (s *Service) CreateGitHubIssue(issReq *github.IssueRequest) error {
 	return nil
 }
 
+
 // GetUserFromToken takes a user's github oauth2 token, and confirms it is both a valid
 // token, and that the token belongs to a contributor/collaborator of the target repo.
-// It then returns the username associated with the token, e.g. for checking against a TokenRequest username
-func (s *Service) VerifyDeveloperToken(tkn string) (string, error) {
-	gh := s.newTokenClient(tkn)
+// if the token request user is not the same as the github token username, false + error is returned.
+// For all cases other than a successful verification, false + error is returned.
+func (s *Service) VerifyDeveloperToken(user, ghTkn string) (bool, error) {
+	gh := s.newTokenClient(ghTkn)
 	req, err := gh.NewRequest(http.MethodGet, "https://api.github.com/user", nil)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create /user request")
+		return false, errors.Wrap(err, "failed to create /user request")
 	}
 	usr := new(github.User)
 	_, err = gh.Do(context.Background(), req, usr)
 	if err != nil {
-		return "", errors.Wrap(err, "gh.Do failed")
+		return false, errors.Wrap(err, "gh.Do failed")
 	}
 	if ok, err := s.IsContributorOrCollaborator(*usr.Login); err != nil {
-		return "", errors.Wrap(err, "")
+		return false, errors.Wrap(err, "")
 	} else if !ok {
-		return "", errors.New(fmt.Sprintf("user %v is not a contributor/collaborator", *usr.Login))
+		return false, errors.New(fmt.Sprintf("user %v is not a contributor/collaborator", *usr.Login))
+	} else if user != *usr.Login {
+		return false, errors.New(fmt.Sprintf("request user %v != github token user %v", user, *usr.Login))
 	}
-	return *usr.Login, nil
+	return true, nil
 }
 
 // IsContributor returns a boolean status for whether the given username is a repository contributor
