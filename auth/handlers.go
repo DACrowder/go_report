@@ -1,18 +1,33 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
 	"github.com/pkg/errors"
 	"go_report/failure"
 	"net/http"
 )
 
+// context setting middleware
 const CertCtxVar = "mssCertificate"
+
+func (a *Service) MSSCertificateCtx(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cert := chi.URLParam(r, string(CertCtxVar))
+		if cert == "" {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		}
+		ctx := context.WithValue(r.Context(), string(CertCtxVar), cert)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 // Authenication middlewares
 
-func (a *Authenticator) Verifier(next http.Handler) http.Handler {
+func (a *Service) Verifier(next http.Handler) http.Handler {
 	verifier := jwtauth.Verifier(a.jwt)(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		verifier.ServeHTTP(w, r)
@@ -20,7 +35,7 @@ func (a *Authenticator) Verifier(next http.Handler) http.Handler {
 }
 
 // Authenticate accepts either Appcertificate or developer jwts, rejecting unknown or invalid jwts
-func (a *Authenticator) Authenticate(next http.Handler) http.Handler {
+func (a *Service) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tkn, claims, err := jwtauth.FromContext(r.Context())
 		if err != nil || tkn == nil || !tkn.Valid {
@@ -38,7 +53,7 @@ func (a *Authenticator) Authenticate(next http.Handler) http.Handler {
 }
 
 // OnlyDevsAuthenticate only authenticates jwts which correspond to a github developer
-func (a *Authenticator) OnlyDevsAuthenticate(next http.Handler) http.Handler {
+func (a *Service) OnlyDevsAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// jwt is linked to github, pass it through
 		_, claims, err := jwtauth.FromContext(r.Context())
@@ -66,7 +81,7 @@ type TokenRequest struct {
 	MSSCert     string `json:"mssCert,omitempty"`
 }
 
-func (a *Authenticator) TokenExchangeHandler() http.HandlerFunc {
+func (a *Service) TokenExchangeHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tr := TokenRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&tr); err != nil {
@@ -85,8 +100,7 @@ func (a *Authenticator) TokenExchangeHandler() http.HandlerFunc {
 	})
 }
 
-
-func (a *Authenticator) AddCertificateHandler() http.HandlerFunc {
+func (a *Service) AddCertificateHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cert := r.Context().Value(string(CertCtxVar)).(string)
 		if cert == "" {
@@ -101,7 +115,7 @@ func (a *Authenticator) AddCertificateHandler() http.HandlerFunc {
 	})
 }
 
-func (a *Authenticator) RemoveCertificateHandler() http.HandlerFunc {
+func (a *Service) RemoveCertificateHandler() http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cert := r.Context().Value(string(CertCtxVar)).(string)
@@ -109,11 +123,10 @@ func (a *Authenticator) RemoveCertificateHandler() http.HandlerFunc {
 			failure.Fail(w, failure.New(errors.New("No certificate found in context"), http.StatusBadRequest, "no certificate provided"))
 			return
 		}
-		if err  := a.cm.RemoveCertificate(cert); err != nil {
+		if err := a.cm.RemoveCertificate(cert); err != nil {
 			failure.Fail(w, failure.New(err, http.StatusInternalServerError, "could not remove certificate"))
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 }
-

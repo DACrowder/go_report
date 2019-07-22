@@ -4,8 +4,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/jwtauth"
 	"github.com/pkg/errors"
+	"go_report/auth/msscerts"
 	"go_report/gh"
-	"go_report/msscerts"
 	"log"
 	"net/http"
 	"time"
@@ -14,47 +14,36 @@ import (
 const ExpiresOneYear = (time.Minute * 60 * 24 * 365)
 
 type JwtAudience string
+
 const (
 	GHAudience  JwtAudience = "github"
 	MSSAudience JwtAudience = "mss"
 )
 
 type JwtClaimKey string
+
 const (
 	GHUser         JwtClaimKey = "ghuname"
 	GHToken        JwtClaimKey = "ghtkn"
 	MSSCertificate JwtClaimKey = "mssCert"
 )
 
-
-type Authenticator struct {
-	cm *msscerts.Manager
+type Service struct {
+	cm  *msscerts.Manager
 	ghs *gh.Service
 	jwt *jwtauth.JWTAuth
 }
 
-func New(cfg Secrets, logger *log.Logger) (s *Authenticator) {
-	msscerts.Init(cfg.MSSCertsFile, logger)
-	repo := gh.Repo{
-		Owner: cfg.GHRepoOwner,
-		Name:  cfg.GHRepoName,
-	}
-	shh := gh.Secrets{
-		PrivateKeyFile: cfg.GHPrivateKeyFile,
-		AppID: cfg.GHAppID,
-		InstallID: cfg.GHInstallID,
-		WebhookSecret: cfg.GHWebhookSecret,
-		ClientID: cfg.GHClientID,
-		ClientSecret: cfg.GHClientSecret,
-	}
-	return &Authenticator{
-		cm: msscerts.GetManager(),
-		ghs: gh.New(repo, shh),
-		jwt: jwtauth.New(jwt.SigningMethodHS512.Name, []byte(cfg.JWTKey), nil),
+func New(shh Secrets, ghs *gh.Service, logger *log.Logger) (s *Service) {
+	msscerts.Init(shh.MSSCertsFile, logger)
+	return &Service{
+		cm:  msscerts.GetManager(),
+		ghs: ghs,
+		jwt: jwtauth.New(jwt.SigningMethodHS512.Name, []byte(shh.JWTKey), nil),
 	}
 }
 
-func (a *Authenticator) maybeCreateJWT(tr TokenRequest) (tkn string, err error) {
+func (a *Service) maybeCreateJWT(tr TokenRequest) (tkn string, err error) {
 	// Enforce token request is either cert based, or github based.
 	if tr.MSSCert != "" && (tr.GitHubToken != "" || tr.User != "") {
 		return "", ErrMSSGHTokenRequest
@@ -79,7 +68,7 @@ func (a *Authenticator) maybeCreateJWT(tr TokenRequest) (tkn string, err error) 
 	return tkn, nil
 }
 
-func (a *Authenticator) newSignedDevJWT(user string, ghTkn string) (tkn string, err error) {
+func (a *Service) newSignedDevJWT(user string, ghTkn string) (tkn string, err error) {
 	ok, err := a.ghs.VerifyDeveloperToken(user, ghTkn)
 	if err != nil {
 		return "", err
@@ -99,7 +88,7 @@ func (a *Authenticator) newSignedDevJWT(user string, ghTkn string) (tkn string, 
 	return tkn, nil
 }
 
-func (a *Authenticator) newSignedAppJWT(mssCert string) (tkn string, err error) {
+func (a *Service) newSignedAppJWT(mssCert string) (tkn string, err error) {
 	if ok, err := a.cm.Verify(mssCert); err != nil {
 		return "", err
 	} else if !ok {
@@ -115,4 +104,3 @@ func (a *Authenticator) newSignedAppJWT(mssCert string) (tkn string, err error) 
 	})
 	return tkn, nil
 }
-

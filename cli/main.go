@@ -21,11 +21,11 @@ import (
 const baseurl = "http://127.0.0.1:3333"
 
 var (
-	 key, gid, slvl, ghUser, ghToken, jwt, cert string
-	stype                                = -1
-	ALL = false
-	delReq                          = false
-	err                                  error
+	key, gid, slvl, ghUser, ghToken, jwt, cert string
+	stype                                      = -1
+	ALL                                        = false
+	delReq                                     = false
+	err                                        error
 )
 
 func init() {
@@ -90,13 +90,13 @@ func main() {
 	}
 
 	url := url()
-	if (url == "") {
+	if url == "" {
 		os.Exit(0)
 		return
 	}
 
 	b, _ := body(map[string]interface{}{}) // did not give data thus no error possible
-	req, err := http.NewRequest(method(),url, b)
+	req, err := http.NewRequest(method(), url, b)
 	if err != nil {
 		_ = fmt.Errorf("failed to create request: %v\n", err.Error())
 		os.Exit(3)
@@ -145,12 +145,12 @@ func getJWT() (string, error) {
 func certRequest(tc *http.Client) (err error) {
 	var req *http.Request
 	var expected int
-	url := baseurl+"/certificate/"+cert
+	url := baseurl + "/certificate/" + cert
 	if delReq {
 		req, err = http.NewRequest(http.MethodDelete, url, nil)
 		expected = http.StatusNoContent
 	} else {
-		req, err =  http.NewRequest(http.MethodPost, url, nil)
+		req, err = http.NewRequest(http.MethodPost, url, nil)
 		expected = http.StatusCreated
 	}
 	if err != nil {

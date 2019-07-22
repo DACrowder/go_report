@@ -25,4 +25,3 @@ func New(err error, statusCode int, userMsg string) *RequestFailure {
 func (rf RequestFailure) Error() string {
 	return fmt.Sprintf("%v - %v", http.StatusText(rf.Code), rf.Msg)
 }
-

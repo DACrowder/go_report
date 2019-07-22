@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	initOnce sync.Once
-	man *Manager
+	initOnce            sync.Once
+	man                 *Manager
 	ErrWriteCertsFailed = failure.New(
 		errors.New("Failed to write updated certificates file"),
 		http.StatusInternalServerError,
@@ -24,15 +24,15 @@ var (
 
 type Manager struct {
 	*log.Logger
-	lock sync.RWMutex
+	lock         sync.RWMutex
 	MSSCertsFile string `json:"jwtMSSCertsFile"`
 }
 
 func Init(certsFilePath string, logger *log.Logger) {
 	initOnce.Do(func() {
 		man = &Manager{
-			lock: sync.RWMutex{},
-			Logger: logger,
+			lock:         sync.RWMutex{},
+			Logger:       logger,
 			MSSCertsFile: certsFilePath,
 		}
 	})
@@ -59,7 +59,8 @@ func (man *Manager) Verify(cert string) (bool, error) {
 }
 
 func (man *Manager) AddCertificate(cert string) error {
-	man.lock.Lock(); defer man.lock.Unlock()
+	man.lock.Lock()
+	defer man.lock.Unlock()
 	f, err := os.OpenFile(man.MSSCertsFile, os.O_APPEND|os.O_WRONLY, 0644)
 	defer func() {
 		if err := f.Close(); err != nil {
@@ -69,7 +70,7 @@ func (man *Manager) AddCertificate(cert string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to open cert registry")
 	}
-	if _, err := f.WriteString("\n"+cert +"\n"); err != nil {
+	if _, err := f.WriteString("\n" + cert + "\n"); err != nil {
 		return errors.Wrap(err, "failed to write new cert to registry")
 	}
 	return nil
@@ -112,5 +113,3 @@ func (man Manager) write(certs []byte) (int, error) {
 	man.lock.Unlock()
 	return len(certs), nil
 }
-
-

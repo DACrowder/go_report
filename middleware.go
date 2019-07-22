@@ -7,21 +7,22 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"go_report/failure"
+	"go_report/report"
 	"io/ioutil"
 	"net/http"
 )
 
-func MSSCertificateCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cert := chi.URLParam(r, string(MSSCertificateCtxVar))
-		if cert == "" {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-			return
-		}
-		ctx := context.WithValue(r.Context(), string(MSSCertificateCtxVar), cert)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
+type RequestContextKey string
+const (
+	// -------- CONTEXT KEYS --------
+	// These constants are the context() keys to retrieve the Key/GID/Severity/Report from the request context
+	// They are used by the middleware to place values in context predictably
+	// Likewise, the handlers use them to retrieve values via Context().Values(ReportVar) -> value
+	ReportKeyVar           RequestContextKey = "reportsKey"
+	ReportGIDVar           RequestContextKey = "reportsGID"
+	ReportSeverityLevelVar RequestContextKey = "severityLevel"
+	ReportCtxVar           RequestContextKey = "reportFromRequestBody"
+)
 
 // ReportCtx returns a middleware which adds a *Report to POST request context
 func ReportCtx(next http.Handler) http.Handler {
@@ -33,7 +34,7 @@ func ReportCtx(next http.Handler) http.Handler {
 		b, _ := ioutil.ReadAll(r.Body)
 		fmt.Println(string(b))
 		bb := bytes.NewBuffer(b)
-		rpt := new(Report)
+		rpt := new(report.Instance)
 		if err := json.NewDecoder(bb).Decode(rpt); err != nil {
 			failure.Fail(w, failure.New(err, http.StatusBadRequest, "Could not decode Report from request body"))
 			return

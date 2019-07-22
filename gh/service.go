@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 type Secrets struct {
@@ -21,8 +23,8 @@ type Secrets struct {
 }
 
 type Repo struct {
-	Owner string  `json:"targetRepoOwner"`
-	Name string	`json:"targetRepoName"`
+	Owner string `json:"targetRepoOwner"`
+	Name  string `json:"targetRepoName"`
 }
 
 type Service struct {
@@ -30,14 +32,31 @@ type Service struct {
 	Repo
 }
 
+//ReadConfig reads a _secrets.json file into a Config struct
+func NewFromFile(fp string) (s *Service, err error) {
+	shh := new(Service)
+	if ok := filepath.IsAbs(fp); !ok {
+		return shh, errors.New("path to service configuration must be an absolute path")
+	}
+	fd, err := os.Open(fp)
+	if err != nil {
+		return shh, err
+	}
+	if err = json.NewDecoder(fd).Decode(&shh); err != nil {
+		return shh, err
+	}
+	fmt.Printf("%+v", shh)
+	return shh, fd.Close()
+}
+
 func New(repo Repo, shh Secrets) *Service {
 	return &Service{
 		Secrets: shh,
-		Repo: repo,
+		Repo:    repo,
 	}
 }
 
-func (s *Service) newTokenClient(tkn string) (*github.Client) {
+func (s *Service) newTokenClient(tkn string) *github.Client {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: tkn})
 	tc := oauth2.NewClient(context.Background(), ts)
 	gh := github.NewClient(tc)
@@ -52,18 +71,17 @@ func (s *Service) newInstallationClient() (*github.Client, error) {
 	return github.NewClient(&http.Client{Transport: tr}), nil
 }
 
-func (s *Service) CreateGitHubIssue(issReq *github.IssueRequest) error {
+func (s *Service) CreateGitHubIssue(issReq github.IssueRequest) error {
 	gh, err := s.newInstallationClient()
 	if err != nil {
 		return err
 	}
-	_, _, err = gh.Issues.Create(context.Background(), s.Repo.Owner, s.Repo.Name, issReq)
+	_, _, err = gh.Issues.Create(context.Background(), s.Repo.Owner, s.Repo.Name, &issReq)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-
 
 // GetUserFromToken takes a user's github oauth2 token, and confirms it is both a valid
 // token, and that the token belongs to a contributor/collaborator of the target repo.
@@ -103,12 +121,14 @@ func (s *Service) IsContributorOrCollaborator(name string) (authorized bool, err
 	} else if repo == nil {
 		return false, errors.New("Failed to confirm user is contributor because repository was nil")
 	}
-	ok, err := IsInCCList(insClient, repo.GetCollaboratorsURL(), name)
+	url := fmt.Sprintf("https://api.github.com/repos/%v/%v/collaborators", s.Owner, s.Name)
+	ok, err := IsInCCList(insClient, url, name)
 	if err != nil {
 		return false, err
 	}
 	if !ok { // not a collaborator...
-		return IsInCCList(insClient, *repo.ContributorsURL, name) // is contributor?
+		url := fmt.Sprintf("https://api.github.com/repos/%v/%v/contributors", s.Owner, s.Name)
+		return IsInCCList(insClient, url, name) // is contributor?
 	}
 	return true, nil // is collaborator.
 }
@@ -116,12 +136,11 @@ func (s *Service) IsContributorOrCollaborator(name string) (authorized bool, err
 // IsInCCList checks whether a given username is a contributor or collaborator to the target repository
 // where ins is the repository installation client (see NewGitHubInstallationClient)
 func IsInCCList(ins *github.Client, url string, uname string) (isPresent bool, err error) {
-	r, err := ins.NewRequest(http.MethodGet, url, nil)
+	r, err := ins.NewRequest(http.MethodGet, url + "/" + uname, nil)
 	if err != nil {
 		return false, errors.Errorf("Failed to create GET %v request: %v", url, err.Error())
 	}
-	haystack := make([]*github.User, 0, 16)
-	rsp, err := ins.Do(context.Background(), r, &haystack)
+	rsp, err := ins.Do(context.Background(), r, nil)
 	if err != nil {
 		switch t := err.(type) {
 		case *github.RateLimitError:
@@ -135,12 +154,5 @@ func IsInCCList(ins *github.Client, url string, uname string) (isPresent bool, e
 	} else if rsp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	ok := false
-	for _, n := range haystack {
-		if *n.Login == uname {
-			ok = true
-			break
-		}
-	}
-	return ok, nil
+	return true, nil
 }

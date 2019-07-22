@@ -11,7 +11,7 @@ import (
 // Endpoint related sync + instance
 var (
 	initOnce sync.Once
-	ep *Endpoint
+	ep       *Endpoint
 )
 
 type Endpoint struct {
@@ -19,7 +19,7 @@ type Endpoint struct {
 }
 
 func Init(logger *log.Logger) {
-	initOnce.Do(func () {
+	initOnce.Do(func() {
 		ep = &Endpoint{
 			Logger: logger,
 		}
@@ -33,14 +33,18 @@ func Fail(w http.ResponseWriter, err error) {
 		ep.Printf("request failed - json format error: %v", err.Error())
 	case *RequestFailure:
 		rf := err.(*RequestFailure)
-		ep.Println("Request failed: ", err.Error())
+		if rf.Code != http.StatusBadRequest && rf.Code != http.StatusUnauthorized {
+			ep.Println("Request failed: ", errors.WithStack(err).Error())
+		}
 		SendError(w, rf.Code, rf.Msg)
 	case RequestFailure:
-		ep.Println("Request failed: ", err.Error())
 		rf := err.(RequestFailure)
+		if rf.Code != http.StatusBadRequest && rf.Code != http.StatusUnauthorized {
+			ep.Println("Request failed: ", errors.WithStack(err).Error())
+		}
 		SendError(w, rf.Code, rf.Msg)
 	default:
-		ep.Println("Request failed (internal server error): ", err.Error())
+		ep.Println("Request failed (internal server error): ", errors.WithStack(err).Error())
 		SendError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 }

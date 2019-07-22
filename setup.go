@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,14 +9,11 @@ import (
 )
 
 type Config struct {
-	Secrets
-	Port         int    `json:"port"` // Port on which to connect the server
-	DBConnection string `json:"dbConnectionString"`
-	LogFile      string `json:"logFile"`     // File location for log
-	SecretsPath  string `json:"secretsPath"` // path to file containing secrets
-	StorageRoot  string `json:"storageRootDir"`
-	RepoName     string `json:"targetRepoName"`
-	RepoOwner    string `json:"targetRepoOwner"`
+	Port          int    `json:"port"`                // Port on which to connect the server
+	LogFile       string `json:"logFile"`             // File location for log
+	SecretsPath   string `json:"secretsPath"`         // path to file containing secrets
+	GHServicePath string `json:"ghServiceConfigPath"` // path to file containing github repo and secrets information
+	StorageRoot   string `json:"storageRootDir"`
 }
 
 //ReadConfig reads a cfg.json file into a Config struct
@@ -33,11 +29,6 @@ func ReadConfig(fp string) (c Config, err error) {
 	if err := fd.Close(); err != nil {
 		return cfg, err
 	}
-	s, err := ReadSecrets(cfg.SecretsPath)
-	if err != nil {
-		return cfg, errors.Wrap(err, "could not read secrets file")
-	}
-	cfg.Secrets = s
 	return cfg, nil
 }
 
