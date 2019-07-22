@@ -1,0 +1,7 @@
+{
+  "secretsPath": "<<ABSOLUTE-PATH-TO-SECRETS>.json",
+  "port": 8080,
+  "logFile": "stderr",
+  "storageRootDir": "<<PATH-TO-STORAGE-DIRECTORY-ROOT>>",
+  "ghServiceConfigPath": "<<PATH-TO-GITHUB-SERVICE-CONFIG>>.json"
+}
