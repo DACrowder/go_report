@@ -76,6 +76,7 @@ func main() {
 		}
 		fmt.Printf("JWT: %v\n", jwt)
 	}
+
 	tc := oauth2.NewClient(
 		context.Background(),
 		oauth2.StaticTokenSource(&oauth2.Token{AccessToken: jwt}),
@@ -87,11 +88,13 @@ func main() {
 			return
 		}
 	}
+
 	url := url()
 	if (url == "") {
 		os.Exit(0)
 		return
 	}
+
 	b, _ := body(map[string]interface{}{}) // did not give data thus no error possible
 	req, err := http.NewRequest(method(),url, b)
 	if err != nil {
@@ -142,7 +145,7 @@ func getJWT() (string, error) {
 func certRequest(tc *http.Client) (err error) {
 	var req *http.Request
 	var expected int
-	url := baseurl+"/certificate/"+cert+"/"
+	url := baseurl+"/certificate/"+cert
 	if delReq {
 		req, err = http.NewRequest(http.MethodDelete, url, nil)
 		expected = http.StatusNoContent
