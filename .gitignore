@@ -15,3 +15,5 @@
 /secrets
 ./secrets/*
 *_secret.json
+
+vendor/*

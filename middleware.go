@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
+	"go_report/domain"
 	"go_report/failure"
-	"go_report/report"
 	"io/ioutil"
 	"net/http"
 )
 
 type RequestContextKey string
+
 const (
 	// -------- CONTEXT KEYS --------
 	// These constants are the context() keys to retrieve the Key/GID/Severity/Report from the request context
@@ -34,7 +35,7 @@ func ReportCtx(next http.Handler) http.Handler {
 		b, _ := ioutil.ReadAll(r.Body)
 		fmt.Println(string(b))
 		bb := bytes.NewBuffer(b)
-		rpt := new(report.Instance)
+		rpt := new(domain.Report)
 		if err := json.NewDecoder(bb).Decode(rpt); err != nil {
 			failure.Fail(w, failure.New(err, http.StatusBadRequest, "Could not decode Report from request body"))
 			return

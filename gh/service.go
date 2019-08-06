@@ -14,17 +14,17 @@ import (
 )
 
 type Secrets struct {
-	PrivateKeyFile string `json:"ghPrivateKeyFile"` // pem encoded rsa key
-	AppID          int    `json:"ghAppID"`
-	InstallID      int    `json:"ghInstallID"`
-	WebhookSecret  string `json:"ghWebhookSecret"`
-	ClientID       string `json:"ghClientID"`
-	ClientSecret   string `json:"ghClientSecret"`
+	PrivateKeyFile string `json:"ghPrivateKeyFile" paramName:"GH_APP_KEY,secret"` // pem encoded rsa key
+	AppID          int    `json:"ghAppID" paramName:"GH_APP_ID,secret"`
+	InstallID      int    `json:"ghInstallID" paramName:"GH_INSTALL_ID,secret"`
+	WebhookSecret  string `json:"ghWebhookSecret" paramName:"GH_WEBHOOK,secret"`
+	ClientID       string `json:"ghClientID" paramName:"GH_CLIENT_ID,secret"`
+	ClientSecret   string `json:"ghClientSecret" paramName:"GH_CLIENT_SECRET,secret"`
 }
 
 type Repo struct {
-	Owner string `json:"targetRepoOwner"`
-	Name  string `json:"targetRepoName"`
+	Owner string `json:"targetRepoOwner" paramName:"GH_REPO_OWNER,secret"`
+	Name  string `json:"targetRepoName" paramName:"GH_REPO_NAME,secret"`
 }
 
 type Service struct {
@@ -45,7 +45,6 @@ func NewFromFile(fp string) (s *Service, err error) {
 	if err = json.NewDecoder(fd).Decode(&shh); err != nil {
 		return shh, err
 	}
-	fmt.Printf("%+v", shh)
 	return shh, fd.Close()
 }
 
@@ -136,7 +135,7 @@ func (s *Service) IsContributorOrCollaborator(name string) (authorized bool, err
 // IsInCCList checks whether a given username is a contributor or collaborator to the target repository
 // where ins is the repository installation client (see NewGitHubInstallationClient)
 func IsInCCList(ins *github.Client, url string, uname string) (isPresent bool, err error) {
-	r, err := ins.NewRequest(http.MethodGet, url + "/" + uname, nil)
+	r, err := ins.NewRequest(http.MethodGet, url+"/"+uname, nil)
 	if err != nil {
 		return false, errors.Errorf("Failed to create GET %v request: %v", url, err.Error())
 	}

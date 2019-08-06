@@ -5,17 +5,18 @@ import (
 	"github.com/go-chi/chi/middleware"
 	chiCors "github.com/go-chi/cors"
 	"go_report/auth"
+	"go_report/domain"
 	"go_report/gh"
-	"go_report/report"
+	"log"
 )
 
-func NewRouter(s *report.Store, a *auth.Service, ghs *gh.Service) *chi.Mux {
+func NewRouter(s domain.Storer, a *auth.Service, ghs *gh.Service, logger *log.Logger) *chi.Mux {
 	r := chi.NewRouter()
 	// init cors middleware
 	cors := chiCors.New(chiCors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-ReportType", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
@@ -55,7 +56,7 @@ func NewRouter(s *report.Store, a *auth.Service, ghs *gh.Service) *chi.Mux {
 			r.Group(func(r chi.Router) {
 				// Application authorization scheme
 				r.Use(ReportCtx)
-				r.Post("/", PostHandler(s, ghs))
+				r.Post("/", PostHandler(s, ghs, logger))
 			})
 			r.Group(func(r chi.Router) {
 				r.Use(a.OnlyDevsAuthenticate)
@@ -64,11 +65,6 @@ func NewRouter(s *report.Store, a *auth.Service, ghs *gh.Service) *chi.Mux {
 				r.Route("/group/{"+string(ReportGIDVar)+"}", func(r chi.Router) {
 					r.Use(ReportGroupCtx)
 					r.Get("/", GetGroupHandler(s))
-					r.Delete("/", DeleteGroupHandler(s))
-				})
-				r.Route("/severity/{"+string(ReportSeverityLevelVar)+"}", func(r chi.Router) {
-					r.Use(ReportSeverityCtx)
-					r.Get("/", GetBatchByTypeHandler(s))
 				})
 				r.Route("/key/{"+string(ReportKeyVar)+"}", func(r chi.Router) {
 					r.Use(ReportKeyCtx)
