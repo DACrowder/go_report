@@ -1,9 +1,10 @@
 package main
 
 import (
-	aws "github.com/aws/aws-sdk-go/aws/session"
 	"log"
 	"net/http"
+
+	aws "github.com/aws/aws-sdk-go/aws/session"
 )
 
 func main() {

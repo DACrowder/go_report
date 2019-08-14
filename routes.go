@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	chiCors "github.com/go-chi/cors"
 	"go_report/auth"
 	"go_report/domain"
 	"go_report/gh"
 	"log"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	chiCors "github.com/go-chi/cors"
 )
 
 func NewRouter(s domain.Storer, a *auth.Service, ghs *gh.Service, logger *log.Logger) *chi.Mux {
@@ -66,7 +67,7 @@ func NewRouter(s domain.Storer, a *auth.Service, ghs *gh.Service, logger *log.Lo
 					r.Use(ReportGroupCtx)
 					r.Get("/", GetGroupHandler(s))
 				})
-				r.Route("/group/{"+string(ReportGIDVar)+"}"+"/key/{"+string(ReportKeyVar)+"}", func (r chi.Router) { // "/group/{gid}/key/{key}/...
+				r.Route("/group/{"+string(ReportGIDVar)+"}"+"/key/{"+string(ReportKeyVar)+"}", func(r chi.Router) { // "/group/{gid}/key/{key}/...
 					r.Use(ReportGroupCtx)
 					r.Use(ReportKeyCtx)
 					r.Get("/", GetReportHandler(s))

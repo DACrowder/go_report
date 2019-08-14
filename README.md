@@ -20,8 +20,24 @@ which enable grouping of reports which occurred in a specific set of circumstanc
 	. tags with values of form: "{value},secret" should be stored/transmitted as a SecureString
 
 
-## Generated server documentation:
+## Routes
 
+<details>
+<summary>`/certificate/{mssCertificate}/*`</summary>
+
+- [(*Cors).Handler-fm]()
+- [RequestID]()
+- [Recoverer]()
+- [URLFormat]()
+- [Logger]()
+- **/certificate/{mssCertificate}/***
+	- **/**
+		- _DELETE_
+			- [(*Service).RemoveCertificateHandler.func1]()
+		- _POST_
+			- [(*Service).AddCertificateHandler.func1]()
+
+</details>
 <details>
 <summary>`/report/*`</summary>
 
@@ -29,12 +45,15 @@ which enable grouping of reports which occurred in a specific set of circumstanc
 - [RequestID]()
 - [Recoverer]()
 - [URLFormat]()
+- [Logger]()
 - **/report/***
 	- **/**
 		- _POST_
-			- [main.PostHandler.func1]() AUTH=CERTIFICATE
+			- [main.ReportCtx]()
+			- [main.PostHandler.func1]()
 		- _GET_
-			- [main.GetAllHandler.func1]() AUTH=GITHUB
+			- [(*Service).OnlyDevsAuthenticate-fm]()
+			- [main.GetAllHandler.func1]()
 
 </details>
 <details>
@@ -44,32 +63,50 @@ which enable grouping of reports which occurred in a specific set of circumstanc
 - [RequestID]()
 - [Recoverer]()
 - [URLFormat]()
+- [Logger]()
 - **/report/***
 	- **/group/{reportsGID}/***
 		- [main.ReportGroupCtx]()
 		- **/**
 			- _GET_
-				- [main.GetGroupHandler.func1]() AUTH=GITHUB
-</details>
+				- [main.GetGroupHandler.func1]()
 
+</details>
 <details>
-<summary>`**/group/{reportsGID}/key/{reportsKey}/**`</summary>
+<summary>`/report/*/group/{reportsGID}/key/{reportsKey}/*`</summary>
 
 - [(*Cors).Handler-fm]()
 - [RequestID]()
 - [Recoverer]()
 - [URLFormat]()
-- **/report/**
-	- **/group/{reportsGID}/key/{reportsKey}/**
+- [Logger]()
+- **/report/***
+	- **/group/{reportsGID}/key/{reportsKey}/***
+		- [main.ReportGroupCtx]()
 		- [main.ReportKeyCtx]()
 		- **/**
 			- _GET_
-				- [main.GetReportHandler.func1]() AUTH=GITHUB
+				- [main.GetReportHandler.func1]()
 			- _DELETE_
-				- [main.DeleteReportHandler.func1]() AUTH=GITHUB
+				- [main.DeleteReportHandler.func1]()
+
+</details>
+<details>
+<summary>`/token/*`</summary>
+
+- [(*Cors).Handler-fm]()
+- [RequestID]()
+- [Recoverer]()
+- [URLFormat]()
+- [Logger]()
+- **/token/***
+	- **/**
+		- _PUT_
+			- [(*Service).TokenExchangeHandler.func1]()
+		- _POST_
+			- [(*Service).TokenExchangeHandler.func1]()
 
 </details>
 
-Total \# of routes: 4
-
+Total # of routes: 5
 

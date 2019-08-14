@@ -255,6 +255,12 @@
 			"revisionTime": "2018-08-16T15:23:45Z"
 		},
 		{
+			"checksumSHA1": "zPUcqsrT5NhnpbzeK3M3myPINWA=",
+			"path": "github.com/go-chi/docgen",
+			"revision": "c94a1e40c06f53a447a809bad19c5f3c4047acc5",
+			"revisionTime": "2019-01-14T21:00:05Z"
+		},
+		{
 			"checksumSHA1": "IoUzh8f57ZU/ENPmvjWEIB/EvsU=",
 			"path": "github.com/go-chi/jwtauth",
 			"revision": "aa727a6feb92b4f5820097b56bf2acc4514f77e9",
