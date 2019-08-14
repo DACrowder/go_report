@@ -10,6 +10,10 @@ RUN go get -d -v ./...
 
 RUN go install -v ./...
 
+RUN go get -u github.com/kardianos/govendor
+
+RUN govendor install +vendor,^program
+
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/bin/go-report .
 
 
@@ -17,13 +21,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/bin/go-report
 
 FROM alpine:latest
 
-RUN apk --no-cahce add ca-certificates
-
 WORKDIR /root/
 
 COPY --from=builder /go/bin/go-report .
 
-
 EXPOSE 8080
 
-CMD ["./go-report"]
+CMD ["go-report"]
