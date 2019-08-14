@@ -1,9 +1,3 @@
 cli/*
-reportFilesStorage/*
-templateConfigs/*
-Dockerfile
-*.lock
-*.toml
-README.md
 .idea/*
 .gitignore
