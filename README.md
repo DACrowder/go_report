@@ -1,5 +1,5 @@
 ## Go Report (bugs & crashes)
-A simple server for automated crash reporting, which stores reports using a disk based key-value store.
+A simple server for automated crash reporting, which stores reports using dynamodb as a backing store.
 Keys are md5 hashes of the report content, used to uniquely identify each file within a group. 
 Group IDs are human-readable identifiers for reports (i.e. from a particular catch block) 
 which enable grouping of reports which occurred in a specific set of circumstances. 
