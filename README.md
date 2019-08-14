@@ -53,14 +53,14 @@ which enable grouping of reports which occurred in a specific set of circumstanc
 </details>
 
 <details>
-<summary>`/report/*/{reportsKey}/*`</summary>
+<summary>`**/group/{reportsGID}/key/{reportsKey}/**`</summary>
 
 - [(*Cors).Handler-fm]()
 - [RequestID]()
 - [Recoverer]()
 - [URLFormat]()
-- **/report/***
-	- **/{reportsKey}/***
+- **/report/**
+	- **/group/{reportsGID}/key/{reportsKey}/**
 		- [main.ReportKeyCtx]()
 		- **/**
 			- _GET_

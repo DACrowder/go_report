@@ -14,7 +14,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -43,8 +42,6 @@ func init() {
 	flag.StringVar(&jwt, "j", "", "the report server auth jwt to use")
 	flag.StringVar(&key, "k", "", "the report key to lookup")
 	flag.StringVar(&gid, "g", "", "the report group id to lookup")
-	flag.StringVar(&slvl, "s", "", "the report severity string (bug | unknown | crash)")
-	flag.IntVar(&stype, "t", -1, "the report type (severity level in numeric form: 0|1|2)")
 	flag.StringVar(&cert, "c", "", "the mss application certificate to add/remove")
 
 	// corresponding long flags
@@ -53,8 +50,6 @@ func init() {
 	flag.StringVar(&jwt, "jwt", "", "the report server auth jwt to use")
 	flag.StringVar(&key, "key", "", "the report key to lookup")
 	flag.StringVar(&gid, "gid", "", "the report group id to lookup")
-	flag.StringVar(&slvl, "severity", "", "the report severity string (bug | unknown | crash)")
-	flag.IntVar(&stype, "type", -1, "the report type (severity level in numeric form: 0|1|2)")
 	flag.BoolVar(&delReq, "Delete", false, "when set, the reports found will be deleted")
 	flag.StringVar(&cert, "certificate", "", "the mss application certificate to add/remove")
 
@@ -114,12 +109,18 @@ func main() {
 		}
 	}()
 	data := map[string]interface{}{}
+	blah, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		_ = fmt.Errorf("%+v", err.Error())
+		os.Exit(6)
+	}
+	_, _ = pretty.Printf("%+v", string(blah))
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		_ = fmt.Errorf("Could not decode response from server: %v\n", err.Error())
 		os.Exit(5)
 		return
 	}
-	_, _ = pretty.Println(data)
+	_, _ = pretty.Printf("Data Recieved:\n%+v", data)
 }
 
 // getJWT from server using github credentials (uname + oauth2 token)
@@ -187,18 +188,17 @@ func method() string {
 
 func url() string {
 	url := baseurl + "/report"
+	if ALL {
+		return url + "/"
+	}
+	if gid != "" {
+		url += "/group/" + gid
+	}
 	if key != "" {
-		url += "/key/" + key + "/"
-	} else if gid != "" {
-		url += "/group/" + gid + "/"
-	} else if slvl != "" {
-		url += "/severity/" + slvl + "/"
-	} else if stype >= 0 {
-		url += "/severity/" + strconv.Itoa(stype) + "/"
-	} else if ALL {
-		url += "/"
-	} else {
+		url += "/key/" + key
+	}
+	if url == "/report" {
 		return ""
 	}
-	return url
+	return url + "/"
 }

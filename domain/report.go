@@ -28,8 +28,8 @@ type Report struct {
 
 // For sending responses to queries regarding report creation confirmation, and lookup help
 type Receipt struct {
-	GID string   `json:"gid"`// the id of the report (directory)
-	Key string `json:"key"` // the filename (string representation of its md5 hash)
+	GID string   `json:"gid"`// the id of the report - PARTITION KEY
+	Key string   `json:"key"` // the report's md5 hash - SORT KEY
 }
 
 func ConvertSeverityLevelString(slvl string) ReportType {

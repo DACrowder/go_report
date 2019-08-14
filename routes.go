@@ -66,7 +66,8 @@ func NewRouter(s domain.Storer, a *auth.Service, ghs *gh.Service, logger *log.Lo
 					r.Use(ReportGroupCtx)
 					r.Get("/", GetGroupHandler(s))
 				})
-				r.Route("/key/{"+string(ReportKeyVar)+"}", func(r chi.Router) {
+				r.Route("/group/{"+string(ReportGIDVar)+"}"+"/key/{"+string(ReportKeyVar)+"}", func (r chi.Router) { // "/group/{gid}/key/{key}/...
+					r.Use(ReportGroupCtx)
 					r.Use(ReportKeyCtx)
 					r.Get("/", GetReportHandler(s))
 					r.Delete("/", DeleteReportHandler(s))

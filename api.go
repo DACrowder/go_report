@@ -48,13 +48,13 @@ func GetGroupHandler(s domain.Storer) http.HandlerFunc {
 	})
 }
 
-
 // return content of file
 func GetReportHandler(s domain.Storer) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		query := r.Context().Value(string(ReportKeyVar)).(string) // if this fails middleware is totally broken; let recoverer deal with the panic
+		g, k := r.Context().Value(string(ReportGIDVar)).(string), r.Context().Value(string(ReportKeyVar)).(string)
 		rpt, err := s.Select(domain.Receipt{
-			Key: query,
+			Key: k,
+			GID: g,
 		})
 		if err != nil {
 			failure.Fail(w, err)
@@ -101,9 +101,8 @@ func PostHandler(s domain.Storer, ghs *gh.Service, logger *log.Logger) http.Hand
 // remove a single file by its key
 func DeleteReportHandler(s domain.Storer) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		k := r.Context().Value(string(ReportKeyVar)).(string) // if we fail to convert to string, we have a big problem -> let recoverer middleware deal
-
-		if err := s.RemoveEntry(domain.Receipt{Key: k}); err != nil {
+		g, k := r.Context().Value(string(ReportGIDVar)).(string), r.Context().Value(string(ReportKeyVar)).(string) // if we fail to convert to string, we have a big problem -> let recoverer middleware deal
+		if err := s.RemoveEntry(domain.Receipt{Key: k, GID:g}); err != nil {
 			failure.Fail(w, err)
 		}
 		w.WriteHeader(http.StatusNoContent)

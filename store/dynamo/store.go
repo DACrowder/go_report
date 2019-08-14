@@ -5,15 +5,17 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"go_report/domain"
+	"go_report/failure"
+	"log"
+	"net/http"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
-	"go_report/domain"
-	"go_report/failure"
-	"log"
-	"net/http"
 )
 
 type Store struct {
@@ -40,7 +42,7 @@ func (s *Store) NewEntry(r domain.Report) (rr domain.Receipt, err error) {
 		return domain.Receipt{}, errToFailure(err)
 	}
 	_, err = s.db.PutItem(&dynamodb.PutItemInput{
-		Item: av,
+		Item:      av,
 		TableName: aws.String(s.Table),
 	})
 	if err != nil {
@@ -54,9 +56,10 @@ func (s *Store) Select(rr domain.Receipt) (*domain.Report, error) {
 	if err != nil {
 		return nil, errToFailure(err)
 	}
+	fmt.Printf("%+v", av)
 	res, err := s.db.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(s.Table),
-		Key: av,
+		Key:       av,
 	})
 	if err != nil {
 		return nil, errToFailure(err)
@@ -79,18 +82,26 @@ func (s *Store) SelectAll() ([]domain.Report, error) {
 	return unmarshalListOfMapsResult(res)
 }
 
-func (s *Store) SelectGroup(gid string) ([]domain.Report, error) {
+func createGroupScanExpr(gid string) (expression.Expression, error) {
 	expr, err := expression.NewBuilder().WithFilter(
 		expression.Name("gid").Equal(expression.Value(gid)),
 	).Build()
 	if err != nil {
-		return nil, errToFailure(err)
+		return expression.Expression{}, errToFailure(err)
+	}
+	return expr, nil
+}
+
+func (s *Store) SelectGroup(gid string) ([]domain.Report, error) {
+	expr, err := createGroupScanExpr(gid)
+	if err != nil {
+		return nil, err
 	}
 	res, err := s.db.Scan(&dynamodb.ScanInput{
-		ExpressionAttributeNames: expr.Names(),
+		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
-		FilterExpression: expr.Filter(),
-		TableName: aws.String(s.Table),
+		FilterExpression:          expr.Filter(),
+		TableName:                 aws.String(s.Table),
 	})
 	if err != nil {
 		return nil, errToFailure(err)
@@ -104,7 +115,7 @@ func (s *Store) RemoveEntry(rr domain.Receipt) error {
 		return errToFailure(err)
 	}
 	_, err = s.db.DeleteItem(&dynamodb.DeleteItemInput{
-		Key: av,
+		Key:       av,
 		TableName: aws.String(s.Table),
 	})
 	if err != nil {

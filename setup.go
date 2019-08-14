@@ -100,14 +100,19 @@ func startAuthService(svc *ssm.SSM, store *dynamo.Store, ghs *gh.Service, logger
 	return auth.New(store, shh, ghs, logger), nil
 }
 
-func LoadFromParamStore(sesh *awsesh.Session) (cfg Config, auth *auth.Service, ghs *gh.Service, store *dynamo.Store, logger *log.Logger, err error) {
-	svc := ssm.New(sesh)
+func DescribeParametersAvailable(svc *ssm.SSM) {
 	dpo, err := svc.DescribeParameters(&ssm.DescribeParametersInput{MaxResults: aws.Int64(15)})
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Printf("Found Parameters: %+v", dpo.String())
+}
+
+func LoadFromParamStore(sesh *awsesh.Session) (cfg Config, auth *auth.Service, ghs *gh.Service, store *dynamo.Store, logger *log.Logger, err error) {
+	svc := ssm.New(sesh)
+
+	//DescribeParametersAvailable(svc)
+
 	if err = LoadParams(svc, &cfg); err != nil {
 		return
 	}
@@ -169,7 +174,6 @@ func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 			tag = strings.Split(tag, ",")[0]
 		}
 		temp[tag] = *param.Parameter.Value
-		fmt.Printf("param: %+v\tsecret: %+v\tvalue:%+v\n", pn, isSecret, temp[tag])
 	}
 	b, err := json.Marshal(temp)
 	if err != nil {
