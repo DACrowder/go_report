@@ -5,6 +5,9 @@
 *.so
 *.dylib
 
+./.idea/*
+*.idea
+
 # Test binary, build with `go test -c`
 *.test
 
@@ -16,4 +19,4 @@
 ./secrets/*
 *_secret.json
 
-vendor/*
+vendor/*/
