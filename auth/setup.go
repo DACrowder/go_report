@@ -8,8 +8,8 @@ import (
 )
 
 type Secrets struct {
-	MSSCertsFile string `json:"jwtMSSCertsFile" paramName:"MSS_CERTS_LIST,list"`
-	JWTKey       string `json:"jwtKey" paramName:"JWT_SECRET_KEY,secret"`
+	MSSCertsTable string `json:"jwtMSSCertsFile" paramName:"MSS_CERTS_TABLE"`
+	JWTKey        string `json:"jwtKey" paramName:"JWT_SECRET_KEY,secret"`
 }
 
 //ReadConfig reads a _secrets.json file into a Config struct

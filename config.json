@@ -1,7 +1,0 @@
-{
-  "secretsPath": "C:\\Users\\alex.crowder\\source\\src\\go_report\\secrets\\_secrets.json",
-  "port": 3333,
-  "logFile": "stderr",
-  "storageRootDir": "C:\\Users\\alex.crowder\\source\\src\\go_report\\reportFilesStorage",
-  "ghServiceConfigPath": "C:\\Users\\alex.crowder\\source\\src\\go_report\\secrets\\githubServiceConfig.json"
-}

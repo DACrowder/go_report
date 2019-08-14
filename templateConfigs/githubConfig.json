@@ -1,9 +1,0 @@
-{
-  "ghAppID": <<GITHUB-APP-ID-NUMBER-HERE>>
-  "ghClientID": "<<APP-CLIENT-ID-STRING>>",
-  "ghClientSecret": "<<APP-CLIENT-SECRET-STRING>>",
-  "ghPrivateKeyFile": "<<ABSOLUTE-PATH-TO-APP-PRIVATE-KEY-FILE>>.pem",
-  "ghInstallID": <<APP/REPOSITORY-INSTALL-ID-INTEGER>>,
-  "targetRepoName": "<<REPOSITORY-NAME>>",
-  "targetRepoOwner": "<<REPOSITORY-OWNER-NAME>>"
-}

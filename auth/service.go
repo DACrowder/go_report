@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"go_report/auth/msscerts"
 	"go_report/gh"
+	"go_report/store/dynamo"
 	"log"
 	"net/http"
 	"time"
@@ -34,8 +35,8 @@ type Service struct {
 	jwt *jwtauth.JWTAuth
 }
 
-func New(shh Secrets, ghs *gh.Service, logger *log.Logger) (s *Service) {
-	msscerts.Init(shh.MSSCertsFile, logger)
+func New(certsDB *dynamo.Store, shh Secrets, ghs *gh.Service, logger *log.Logger) (s *Service) {
+	msscerts.Init(certsDB, logger)
 	return &Service{
 		cm:  msscerts.GetManager(),
 		ghs: ghs,

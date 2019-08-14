@@ -2,23 +2,28 @@ package main
 
 import (
 	"encoding/json"
-	aws "github.com/aws/aws-sdk-go/aws/session"
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	awsesh "github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/pkg/errors"
 	"go_report/auth"
 	"go_report/gh"
+	"go_report/store/dynamo"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
-	Port          int    `json:"port" paramName:"BRS_PORT"`                // Port on which to connect the server
-	LogFile       string `json:"logFile" paramName:"BRS_LOGFILE"`             // File location for log
-	InProduction bool 	 `json:"inProduction"`
+	Port    string `json:"port" paramName:"BRS_PORT"`       // Port on which to connect the server
+	LogFile string `json:"logFile" paramName:"BRS_LOGFILE"` // File location for log
 }
+
+const tblName = "BugReports"
 
 //ReadConfigFromFile reads a cfg.json file into a Config struct
 func ReadConfigFromFile(fp string) (c Config, err error) {
@@ -58,33 +63,62 @@ func startGHService(svc *ssm.SSM) (*gh.Service, error) {
 	if err := LoadParams(svc, &repo); err != nil {
 		return nil, err
 	}
-	var ghshh gh.Secrets
-	if err := LoadParams(svc, &ghshh); err != nil {
+	var mm struct { // middleman between strings & typed gh.Secrets
+		PrivateKeyFile string `json:"ghPrivateKeyFile" paramName:"GH_APP_KEY,secret"` // pem encoded rsa key
+		AppID          string `json:"ghAppID" paramName:"GH_APP_ID,secret"`
+		InstallID      string `json:"ghInstallID" paramName:"GH_INSTALL_ID,secret"`
+		//WebhookSecret  string `json:"ghWebhookSecret" paramName:"GH_WEBHOOK,secret"` // not needed
+		ClientID     string `json:"ghClientID" paramName:"GH_CLIENT_ID,secret"`
+		ClientSecret string `json:"ghClientSecret" paramName:"GH_CLIENT_SECRET,secret"`
+	}
+	if err := LoadParams(svc, &mm); err != nil {
 		return nil, err
 	}
+	ghshh := gh.Secrets{
+		PrivateKeyFile: mm.PrivateKeyFile,
+		ClientID:       mm.ClientID,
+		ClientSecret:   mm.ClientSecret,
+	}
+	i, err := strconv.Atoi(mm.AppID)
+	if err != nil {
+		return nil, err
+	}
+	ghshh.AppID = i
+	i, err = strconv.Atoi(mm.InstallID)
+	if err != nil {
+		return nil, err
+	}
+	ghshh.InstallID = i
 	return gh.New(repo, ghshh), nil
 }
 
-func startAuthService(svc *ssm.SSM, ghs *gh.Service, logger *log.Logger) (*auth.Service, error) {
+func startAuthService(svc *ssm.SSM, store *dynamo.Store, ghs *gh.Service, logger *log.Logger) (*auth.Service, error) {
 	var shh auth.Secrets
 	if err := LoadParams(svc, &shh); err != nil {
 		return nil, err
 	}
-	return auth.New(shh, ghs, logger), nil
+	return auth.New(store, shh, ghs, logger), nil
 }
 
-func LoadFromParamStore(sesh *aws.Session) (cfg Config, auth *auth.Service, ghs *gh.Service, logger *log.Logger, err error) {
+func LoadFromParamStore(sesh *awsesh.Session) (cfg Config, auth *auth.Service, ghs *gh.Service, store *dynamo.Store, logger *log.Logger, err error) {
 	svc := ssm.New(sesh)
+	dpo, err := svc.DescribeParameters(&ssm.DescribeParametersInput{MaxResults: aws.Int64(15)})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Found Parameters: %+v", dpo.String())
 	if err = LoadParams(svc, &cfg); err != nil {
 		return
 	}
 	if logger, err = StartLogger(cfg.LogFile); err != nil {
 		return
 	}
+	store = dynamo.New(sesh, tblName, logger)
 	if ghs, err = startGHService(svc); err != nil {
 		return
 	}
-	if auth, err = startAuthService(svc, ghs, logger); err != nil {
+	if auth, err = startAuthService(svc, store, ghs, logger); err != nil {
 		return
 	}
 	return
@@ -98,10 +132,13 @@ func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 	if ok := reflect.ValueOf(v).Kind() == reflect.Ptr; !ok {
 		return errors.New("LoadParams requires a pointer to a tagged destination structure")
 	}
+
 	// Iterate over all available fields and read the tag value
-	t, temp := reflect.TypeOf(v), map[string]interface{}{}
+	t, temp := reflect.ValueOf(v).Elem(), map[string]interface{}{}
+	fmt.Println("Type:", t.Type().Name())
+	fmt.Println("Kind:", t.Kind())
 	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+		field := t.Type().Field(i)
 		// Get the field tag value
 		tag := field.Tag.Get(tagName)
 		if tag == "" {
@@ -114,11 +151,13 @@ func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 		} else {
 			pn, isSecret = tag, false
 		}
+
 		param, err := svc.GetParameter(&ssm.GetParameterInput{
-			Name:           &pn,
-			WithDecryption: &isSecret,
+			Name:           aws.String(pn),
+			WithDecryption: aws.Bool(isSecret),
 		})
 		if err != nil {
+			fmt.Printf("param: %+v\tsecret: %+v", pn, isSecret)
 			return err
 		}
 		// Now add the value from the param store, to the intermediate map
@@ -130,6 +169,7 @@ func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 			tag = strings.Split(tag, ",")[0]
 		}
 		temp[tag] = *param.Parameter.Value
+		fmt.Printf("param: %+v\tsecret: %+v\tvalue:%+v\n", pn, isSecret, temp[tag])
 	}
 	b, err := json.Marshal(temp)
 	if err != nil {

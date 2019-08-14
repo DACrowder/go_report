@@ -3,9 +3,6 @@ package main
 import (
 	aws "github.com/aws/aws-sdk-go/aws/session"
 	"log"
-	"strconv"
-
-	"go_report/store/dynamo"
 	"net/http"
 )
 
@@ -17,7 +14,7 @@ func main() {
 		panic(err)
 		return
 	}
-	cfg, shh, ghs, logger, err := LoadFromParamStore(sesh)
+	cfg, shh, ghs, store, logger, err := LoadFromParamStore(sesh)
 	if err != nil {
 		if logger != nil {
 			log.Fatal(err.Error())
@@ -25,11 +22,12 @@ func main() {
 			panic(err)
 		}
 	}
-	r := NewRouter(dynamo.New(sesh, "BugReports", logger), shh, ghs, logger)
+
+	r := NewRouter(store, shh, ghs, logger)
 	logger.Println("Router created, starting server...")
 
 	// Start serving
-	if err := http.ListenAndServe(":"+strconv.Itoa(cfg.Port), r); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
 		if err != http.ErrServerClosed {
 			logger.Panic(err)
 		} else {
