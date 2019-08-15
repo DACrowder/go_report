@@ -1,6 +1,8 @@
 package msscerts
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"go_report/domain"
 	"go_report/failure"
 	"go_report/store/dynamo"
@@ -49,7 +51,7 @@ func (man *Manager) Verify(cert string) (bool, error) {
 	defer man.lock.RUnlock()
 	cert = strings.TrimSpace(cert)
 	// The query for the store
-	r, err := man.Store.Select(domain.Receipt{GID: MssCertificateGid, Key: cert})
+	r, err := man.Store.Select(domain.Receipt{GID: MssCertificateGid, Key: getMD5HashString([]byte(cert))})
 	if err != nil {
 		return false, errors.Wrap(err, "Could not retrieve entry from database")
 	}
@@ -61,7 +63,8 @@ func (man *Manager) AddCertificate(cert string) error {
 	defer man.lock.Unlock()
 	_, err := man.NewEntry(domain.Report{
 		GID: MssCertificateGid,
-		Key: cert,
+		Key: getMD5HashString([]byte(cert)),
+		Content: map[string]interface{}{"value":cert},
 	})
 	if err != nil {
 		return errors.Wrap(err, "Could not write certificate to database")
@@ -72,9 +75,15 @@ func (man *Manager) AddCertificate(cert string) error {
 func (man Manager) RemoveCertificate(needle string) error {
 	man.lock.Lock()
 	defer man.lock.Unlock()
-	err := man.Store.RemoveEntry(domain.Receipt{GID: MssCertificateGid, Key: needle})
+	err := man.Store.RemoveEntry(domain.Receipt{GID: MssCertificateGid, Key: getMD5HashString([]byte(needle))})
 	if err != nil {
 		return errors.Wrap(err, "Could not remove certificate due to error")
 	}
 	return nil
+}
+
+func getMD5HashString(text []byte) string {
+	hasher := md5.New()
+	hasher.Write(text)
+	return hex.EncodeToString(hasher.Sum(nil))
 }
