@@ -82,6 +82,9 @@ func main() {
 			os.Exit(2)
 			return
 		}
+		fmt.Printf("Successfully added certificate (%+v)", cert)
+		os.Exit(0)
+		return
 	}
 
 	url := url()
