@@ -140,8 +140,6 @@ func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 
 	// Iterate over all available fields and read the tag value
 	t, temp := reflect.ValueOf(v).Elem(), map[string]interface{}{}
-	fmt.Println("Type:", t.Type().Name())
-	fmt.Println("Kind:", t.Kind())
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Type().Field(i)
 		// Get the field tag value

@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"go_report/domain"
 	"go_report/failure"
 	"log"
@@ -56,7 +55,6 @@ func (s *Store) Select(rr domain.Receipt) (*domain.Report, error) {
 	if err != nil {
 		return nil, errToFailure(err)
 	}
-	fmt.Printf("%+v", av)
 	res, err := s.db.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(s.Table),
 		Key:       av,
