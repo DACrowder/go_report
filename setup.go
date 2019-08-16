@@ -19,11 +19,10 @@ import (
 )
 
 type Config struct {
-	Port    string `json:"port" paramName:"BRS_PORT"`       // Port on which to connect the server
-	LogFile string `json:"logFile" paramName:"BRS_LOGFILE"` // File location for log
+	Port    string `json:"port" paramName:"BRS_PORT" paramDefault:"8080"`       // Port on which to connect the server
+	LogFile string `json:"logFile" paramName:"BRS_LOGFILE" paramDefault:"stderr"` // File location for log
+	TableName string `json:"tableName" paramName:"TABLE_NAME" paramDefault:"BugReports"`
 }
-
-const tblName = "BugReports"
 
 //ReadConfigFromFile reads a cfg.json file into a Config struct
 func ReadConfigFromFile(fp string) (c Config, err error) {
@@ -119,7 +118,8 @@ func LoadFromParamStore(sesh *awsesh.Session) (cfg Config, auth *auth.Service, g
 	if logger, err = StartLogger(cfg.LogFile); err != nil {
 		return
 	}
-	store = dynamo.New(sesh, tblName, logger)
+	store = dynamo.New(sesh, cfg.TableName, logger)
+	fmt.Printf("%+v %+v", store, cfg)
 	if ghs, err = startGHService(svc); err != nil {
 		return
 	}
@@ -134,6 +134,7 @@ func LoadFromParamStore(sesh *awsesh.Session) (cfg Config, auth *auth.Service, g
 //  leveraging the stdlib unmarshal.
 func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 	const tagName = "paramName"
+	const defaultValueTagName = "paramDefault"
 	if ok := reflect.ValueOf(v).Kind() == reflect.Ptr; !ok {
 		return errors.New("LoadParams requires a pointer to a tagged destination structure")
 	}
@@ -142,11 +143,13 @@ func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 	t, temp := reflect.ValueOf(v).Elem(), map[string]interface{}{}
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Type().Field(i)
-		// Get the field tag value
+		// get the json and param tags
 		tag := field.Tag.Get(tagName)
-		if tag == "" {
+		jt := field.Tag.Get("json")
+		if jt == "" || tag == "" {
 			continue
 		}
+
 		var pn string
 		var isSecret bool
 		if strings.Contains(tag, ",secret") {
@@ -154,25 +157,29 @@ func LoadParams(svc *ssm.SSM, v interface{}) (err error) {
 		} else {
 			pn, isSecret = tag, false
 		}
-
 		param, err := svc.GetParameter(&ssm.GetParameterInput{
 			Name:           aws.String(pn),
 			WithDecryption: aws.Bool(isSecret),
 		})
+		// if err, set default value if provided; else fail with error
 		if err != nil {
-			fmt.Printf("param: %+v\tsecret: %+v", pn, isSecret)
-			return err
+			dv := field.Tag.Get(defaultValueTagName)
+			if dv == "" {
+				fmt.Printf("param: %+v\tsecret: %+v", pn, isSecret)
+				return err
+			}
+			// sets default value of param
+			param = &ssm.GetParameterOutput{
+				Parameter: &ssm.Parameter{Value: aws.String(dv)},
+			}
 		}
 		// Now add the value from the param store, to the intermediate map
-		tag = field.Tag.Get("json")
-		if tag == "" {
-			continue
+		if strings.Contains(jt, ",") {
+			jt = strings.Split(jt, ",")[0]
 		}
-		if strings.Contains(tag, ",") {
-			tag = strings.Split(tag, ",")[0]
-		}
-		temp[tag] = *param.Parameter.Value
+		temp[jt] = *param.Parameter.Value
 	}
+
 	b, err := json.Marshal(temp)
 	if err != nil {
 		return err
