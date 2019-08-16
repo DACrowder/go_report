@@ -4,6 +4,16 @@ Keys are md5 hashes of the report content, used to uniquely identify each file w
 Group IDs are human-readable identifiers for reports (i.e. from a particular catch block) 
 which enable grouping of reports which occurred in a specific set of circumstances. 
 
+# Preliminary Server Setup Details:
+	1. Create a GitHub App with permission to read the repository, and read/create issues
+	2. Generate the App Secrets (CLIENT_ID, CLIENT_SECRET, APP_ID) + the private key file
+		- Webhook is required for creating an app, but we do not use it and the secret should be excluded
+	3. Move the private key file to a secure location of which the instance has read access.
+	4. Install the App onto the repository, record the install ID.
+	5. Create the necessary params (See gh/service.go -> Secrets, Repo structs for param names)
+	6. Specify the JWT and MSS Certificate Parameters (see auth/setup.go -> Config)
+	7. Setup aws credentials, yada yada, ready to go.
+
 # Application Side Details:
 	. On build => generate & add certificate for release version
 	. On first bug report => exchange certificate for jwt
