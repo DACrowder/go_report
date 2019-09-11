@@ -11,7 +11,7 @@ import (
 	chiCors "github.com/go-chi/cors"
 )
 
-func NewRouter(s domain.Storer, a *auth.Service, ghs *gh.Service, logger *log.Logger) *chi.Mux {
+func NewRouter(issCreateThreshold int, s domain.Storer, a *auth.Service, ghs *gh.Service, logger *log.Logger) *chi.Mux {
 	r := chi.NewRouter()
 	// init cors middleware
 	cors := chiCors.New(chiCors.Options{
@@ -57,7 +57,7 @@ func NewRouter(s domain.Storer, a *auth.Service, ghs *gh.Service, logger *log.Lo
 			r.Group(func(r chi.Router) {
 				// Application authorization scheme
 				r.Use(ReportCtx)
-				r.Post("/", PostHandler(s, ghs, logger))
+				r.Post("/", PostHandler(issCreateThreshold, s, ghs, logger))
 			})
 			r.Group(func(r chi.Router) {
 				r.Use(a.OnlyDevsAuthenticate)

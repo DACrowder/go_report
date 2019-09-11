@@ -1,8 +1,10 @@
 package main
 
 import (
+	"go_report/go_report/domain"
 	"log"
 	"net/http"
+	"strconv"
 
 	aws "github.com/aws/aws-sdk-go/aws/session"
 )
@@ -23,8 +25,11 @@ func main() {
 			panic(err)
 		}
 	}
-
-	r := NewRouter(store, shh, ghs, logger)
+	ict, err := strconv.Atoi(cfg.IssueCreationThreshold)
+	if err != nil {
+		ict = domain.DisableIssueCreation// default to disabling issue creation if non-int passed
+	}
+	r := NewRouter(ict, store, shh, ghs, logger)
 	logger.Println("Router created, starting server...")
 
 	// Start serving

@@ -2,8 +2,6 @@ package domain
 
 import "strings"
 
-type ReportType int
-
 type Storer interface {
 	NewEntry(r Report) (Receipt, error)                                        // Create a new entry in the store, return receipt
 	Select(lookup Receipt) (*Report, error)                                      // Select one record by its key
@@ -12,6 +10,9 @@ type Storer interface {
 	RemoveEntry(lookup Receipt) error                                              // Erase a record from the store, or a group of records by GID
 }
 
+const DisableIssueCreation = -1
+
+type ReportType int
 const (
 	UnknownType ReportType = iota
 	BugType

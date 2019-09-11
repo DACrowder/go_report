@@ -67,7 +67,7 @@ func GetReportHandler(s domain.Storer) http.HandlerFunc {
 	})
 }
 
-func PostHandler(s domain.Storer, ghs *gh.Service, logger *log.Logger) http.HandlerFunc {
+func PostHandler(issThreshold int, s domain.Storer, ghs *gh.Service, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// read rpt from context
 		rpt := r.Context().Value(string(ReportCtxVar)).(domain.Report)
@@ -81,7 +81,7 @@ func PostHandler(s domain.Storer, ghs *gh.Service, logger *log.Logger) http.Hand
 			failure.Fail(w, failure.New(errors.Wrap(err, "failed to encode reciept"), http.StatusInternalServerError, ""))
 			return
 		}
-		if rpt.Severity == domain.CrashType {
+		if issThreshold > 0 && rpt.Severity >= issThreshold {
 			logger.Println("Creating github issue for crash report")
 			err = ghs.CreateGitHubIssue(github.IssueRequest{
 				Title:  github.String(rr.GID + " " + rr.Key),
