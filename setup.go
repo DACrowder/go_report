@@ -22,6 +22,7 @@ type Config struct {
 	Port    string `json:"port" paramName:"BRS_PORT" paramDefault:"8080"`       // Port on which to connect the server
 	LogFile string `json:"logFile" paramName:"BRS_LOGFILE" paramDefault:"stderr"` // File location for log
 	TableName string `json:"tableName" paramName:"TABLE_NAME" paramDefault:"BugReports"`
+	IssueCreationThreshold int `json:"issueCreationThreshold" paramName:"ISSUE_CREATION_THRESHOLD" paramDefault:"-1"`
 }
 
 //ReadConfigFromFile reads a cfg.json file into a Config struct
