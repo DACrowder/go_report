@@ -10,8 +10,10 @@ import (
 	"go_report/auth"
 	"go_report/gh"
 	"go_report/store/dynamo"
+	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -64,7 +66,7 @@ func startGHService(svc *ssm.SSM) (*gh.Service, error) {
 		return nil, err
 	}
 	var mm struct { // middleman between strings & typed gh.Secrets
-		PrivateKeyFile string `json:"ghPrivateKeyFile" paramName:"GH_APP_KEY,secret"` // pem encoded rsa key
+		PrivateKey string `json:"ghPrivateKey" paramName:"GH_APP_KEY,secret"` // pem encoded rsa key
 		AppID          string `json:"ghAppID" paramName:"GH_APP_ID,secret"`
 		InstallID      string `json:"ghInstallID" paramName:"GH_INSTALL_ID,secret"`
 		//WebhookSecret  string `json:"ghWebhookSecret" paramName:"GH_WEBHOOK,secret"` // not needed
@@ -74,8 +76,16 @@ func startGHService(svc *ssm.SSM) (*gh.Service, error) {
 	if err := LoadParams(svc, &mm); err != nil {
 		return nil, err
 	}
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	pkf :=  path.Join(dir, "ghappkey.pem")
+	if err := ioutil.WriteFile(pkf, []byte(mm.PrivateKey), 0400); err != nil {
+		return nil, err
+	}
 	ghshh := gh.Secrets{
-		PrivateKeyFile: mm.PrivateKeyFile,
+		PrivateKeyFile: pkf,
 		ClientID:       mm.ClientID,
 		ClientSecret:   mm.ClientSecret,
 	}

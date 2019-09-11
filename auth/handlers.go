@@ -55,7 +55,6 @@ func (a *Service) Authenticate(next http.Handler) http.Handler {
 // OnlyDevsAuthenticate only authenticates jwts which correspond to a github developer
 func (a *Service) OnlyDevsAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// jwt is linked to github, pass it through
 		_, claims, err := jwtauth.FromContext(r.Context())
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

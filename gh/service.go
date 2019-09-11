@@ -14,9 +14,9 @@ import (
 )
 
 type Secrets struct {
-	PrivateKeyFile string `json:"ghPrivateKeyFile" paramName:"GH_APP_KEY,secret"` // pem encoded rsa key
-	AppID          int    `json:"ghAppID" paramName:"GH_APP_ID,secret"`
-	InstallID      int    `json:"ghInstallID" paramName:"GH_INSTALL_ID,secret"`
+	PrivateKeyFile string // path to pem encoded rsa key
+	AppID      int    `json:"ghAppID" paramName:"GH_APP_ID,secret"`
+	InstallID  int    `json:"ghInstallID" paramName:"GH_INSTALL_ID,secret"`
 	//WebhookSecret  string `json:"ghWebhookSecret" paramName:"GH_WEBHOOK,secret"` // not needed
 	ClientID       string `json:"ghClientID" paramName:"GH_CLIENT_ID,secret"`
 	ClientSecret   string `json:"ghClientSecret" paramName:"GH_CLIENT_SECRET,secret"`
