@@ -80,7 +80,6 @@ func (a *Service) newSignedDevJWT(user string, ghTkn string) (tkn string, err er
 	_, tkn, err = a.jwt.Encode(jwt.MapClaims{
 		"aud":           string(GHAudience),
 		string(GHUser):  user,
-		string(GHToken): ghTkn,
 		"iss":           "mss_go_report",
 		"iat":           time.Now().Unix(),
 		"exp":           time.Now().Add(ExpiresOneYear).Unix(),

@@ -61,11 +61,8 @@ func (a *Service) OnlyDevsAuthenticate(next http.Handler) http.Handler {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		if ok := claims.VerifyAudience(string(GHAudience), true); !ok {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-		if claims[string(GHUser)] == "" || claims[string(GHToken)] == "" {
+		ok := claims.VerifyAudience(string(GHAudience), true)
+		if !ok || claims[string(GHUser)] == "" {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
