@@ -81,7 +81,7 @@ func PostHandler(issThreshold int, s domain.Storer, ghs *gh.Service, logger *log
 			failure.Fail(w, failure.New(errors.Wrap(err, "failed to encode reciept"), http.StatusInternalServerError, ""))
 			return
 		}
-		if issThreshold > 0 && rpt.Severity >= issThreshold {
+		if issThreshold > 0 && int(rpt.Severity) >= issThreshold {
 			logger.Println("Creating github issue for crash report")
 			err = ghs.CreateGitHubIssue(github.IssueRequest{
 				Title:  github.String(rr.GID + " " + rr.Key),
