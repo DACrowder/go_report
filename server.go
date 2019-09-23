@@ -1,7 +1,7 @@
 package main
 
 import (
-	"go_report/go_report/domain"
+	"go_report/domain"
 	"log"
 	"net/http"
 	"strconv"
