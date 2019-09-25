@@ -14,7 +14,7 @@ import (
 )
 
 type Secrets struct {
-	PrivateKeyFile string // path to pem encoded rsa key
+	PrivateKey string // path to pem encoded rsa key
 	AppID      int    `json:"ghAppID" paramName:"GH_APP_ID,secret"`
 	InstallID  int    `json:"ghInstallID" paramName:"GH_INSTALL_ID,secret"`
 	//WebhookSecret  string `json:"ghWebhookSecret" paramName:"GH_WEBHOOK,secret"` // not needed
@@ -63,7 +63,8 @@ func (s *Service) newTokenClient(tkn string) *github.Client {
 }
 
 func (s *Service) newInstallationClient() (*github.Client, error) {
-	tr, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, s.AppID, s.InstallID, s.PrivateKeyFile)
+
+	tr, err := ghinstallation.New(http.DefaultTransport, s.AppID, s.InstallID, []byte(s.PrivateKey))
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating app transport: %v", err.Error())
 	}

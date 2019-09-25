@@ -10,10 +10,8 @@ import (
 	"go_report/auth"
 	"go_report/gh"
 	"go_report/store/dynamo"
-	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -76,16 +74,9 @@ func startGHService(svc *ssm.SSM) (*gh.Service, error) {
 	if err := LoadParams(svc, &mm); err != nil {
 		return nil, err
 	}
-	dir, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-	pkf :=  path.Join(dir, "ghappkey.pem")
-	if err := ioutil.WriteFile(pkf, []byte(mm.PrivateKey), 0400); err != nil {
-		return nil, err
-	}
+
 	ghshh := gh.Secrets{
-		PrivateKeyFile: pkf,
+		PrivateKey: 	mm.PrivateKey,
 		ClientID:       mm.ClientID,
 		ClientSecret:   mm.ClientSecret,
 	}
