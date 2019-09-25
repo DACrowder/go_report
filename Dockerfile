@@ -13,5 +13,6 @@ WORKDIR /
 RUN addgroup -S reporters && adduser -S goreporter -G reporters
 USER goreporter
 COPY --from=builder /go_report /home/goreporter/go_report
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 EXPOSE 8080
 ENTRYPOINT ["/home/goreporter/go_report"]
