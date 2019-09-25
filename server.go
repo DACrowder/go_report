@@ -5,13 +5,16 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-
-	aws "github.com/aws/aws-sdk-go/aws/session"
+	aws "github.com/aws/aws-sdk-go/aws"
+	seshman "github.com/aws/aws-sdk-go/aws/session"
 )
 
 func main() {
-	sesh, err := aws.NewSessionWithOptions(aws.Options{
-		SharedConfigState: aws.SharedConfigEnable,
+	sesh, err := seshman.NewSessionWithOptions(seshman.Options{
+		SharedConfigState: seshman.SharedConfigEnable,
+		Config: aws.Config{
+			Region: aws.String("us-west-2"),
+		},
 	})
 	if err != nil {
 		panic(err)

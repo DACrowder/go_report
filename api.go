@@ -12,6 +12,15 @@ import (
 	"net/http"
 )
 
+
+func PingHandler() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := w.Write([]byte("pong")); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})
+}
+
 // Gets all reports with content
 func GetAllHandler(s domain.Storer) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -29,6 +29,10 @@ func NewRouter(issCreateThreshold int, s domain.Storer, a *auth.Service, ghs *gh
 	r.Use(middleware.URLFormat)
 	r.Use(middleware.Logger)
 
+	r.Route("/ping", func(r chi.Router) {
+		r.Get("/", PingHandler())
+	})
+
 	// public route for getting jwt
 	r.Route("/token", func(r chi.Router) {
 		r.Put("/", a.TokenExchangeHandler())
