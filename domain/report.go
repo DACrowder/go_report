@@ -1,6 +1,9 @@
 package domain
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 type Storer interface {
 	NewEntry(r Report) (Receipt, error)                                        // Create a new entry in the store, return receipt
