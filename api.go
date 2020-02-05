@@ -9,6 +9,7 @@ import (
 	"go_report/failure"
 	"go_report/gh"
 	"log"
+	"time"
 	"net/http"
 )
 
@@ -80,6 +81,7 @@ func PostHandler(issThreshold int, s domain.Storer, ghs *gh.Service, logger *log
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// read rpt from context
 		rpt := r.Context().Value(string(ReportCtxVar)).(domain.Report)
+		rpt.ReceivedOn = time.Now()
 		// add to s
 		rr, err := s.NewEntry(rpt)
 		if err != nil {
