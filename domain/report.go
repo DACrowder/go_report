@@ -21,10 +21,11 @@ const (
 
 type Report struct {
 	// The report creation request will contain these three fields
-	GID      string                 `json:"gid"`
-	Severity ReportType             `json:"severity"`
-	Content  map[string]interface{} `json:"content"`
-	Key      string `json:"key"`
+	GID      	string                 `json:"gid"`
+	Severity 	ReportType             `json:"severity"`
+	Content  	map[string]interface{} `json:"content"`
+	Key      	string `json:"key"`
+	ReceivedOn    	time.Time		`json:"receivedOn"`
 }
 
 // For sending responses to queries regarding report creation confirmation, and lookup help
